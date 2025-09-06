@@ -1,0 +1,217 @@
+﻿:root {
+    --bg: #f4f6f8;
+    --col-bg: #f1f2f4;
+    --list-bg: #ebecf0;
+    --card-bg: #fff;
+    --text: #172b4d;
+    --muted: #6b778c;
+    --primary: #0079bf;
+    --primary-hover: #026aa7;
+    --shadow: 0 4px 12px rgba(0,0,0,.08);
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body, .home-container {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+}
+
+.home-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px;
+    gap: 16px;
+    overflow: hidden;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--col-bg);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+    .navbar .logo {
+        font-weight: 700;
+        font-size: 20px;
+    }
+
+.nav-links a {
+    margin-left: 16px;
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 500;
+}
+
+    .nav-links a:hover {
+        color: var(--primary);
+    }
+
+/* Profil */
+.profile {
+    position: relative;
+    cursor: pointer;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+.profile-dropdown {
+    position: absolute;
+    top: 46px;
+    right: 0;
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+    .profile-dropdown a {
+        padding: 8px 16px;
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 500;
+    }
+
+        .profile-dropdown a:hover {
+            background: var(--col-bg);
+        }
+
+/* Başlık */
+.home-title {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* Board */
+.board-wrapper {
+    flex: 1;
+    overflow: auto;
+    padding-bottom: 12px;
+}
+
+.board {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    min-height: 100%;
+}
+
+/* Liste */
+.list {
+    background: var(--list-bg);
+    border-radius: var(--radius);
+    padding: 10px;
+    width: 300px;
+    min-width: 280px;
+    max-width: 340px;
+    box-shadow: var(--shadow);
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.list-title {
+    font-weight: 700;
+}
+
+/* Kart */
+.card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+    cursor: grab;
+    transition: transform .08s ease, box-shadow .12s ease;
+}
+
+    .card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(0,0,0,.12);
+    }
+
+    .card.dragging {
+        opacity: 0.7;
+        transform: rotate(2deg);
+    }
+
+/* Yeni kart ekleme */
+.add-card {
+    margin-top: 8px;
+}
+
+    .add-card input {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #dfe1e6;
+        margin-bottom: 4px;
+    }
+
+    .add-card button {
+        width: 100%;
+        border: none;
+        padding: 8px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+    }
+
+        .add-card button:hover {
+            background: var(--primary-hover);
+        }
+
+/* Yeni liste ekleme */
+.add-list {
+    background: var(--col-bg);
+    border: 2px dashed #c1c7d0;
+    color: var(--muted);
+    border-radius: var(--radius);
+    min-width: 260px;
+    padding: 14px;
+    cursor: pointer;
+    height: fit-content;
+}
+
+    .add-list:hover {
+        background: #e6e9ef;
+        border-color: #a8b0bd;
+        color: var(--text);
+    }
+
+/* Scrollbar */
+.board-wrapper::-webkit-scrollbar {
+    height: 10px;
+}
+
+.board-wrapper::-webkit-scrollbar-thumb {
+    background: #aeb8c6;
+    border-radius: 999px;
+}

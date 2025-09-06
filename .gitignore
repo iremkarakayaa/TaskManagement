@@ -1,0 +1,23 @@
+# Visual Studio cache
+.vs/
+bin/
+obj/
+
+# Node.js baðýmlýlýklarý
+node_modules/
+
+# Log dosyalarý
+*.log
+
+# Kullanýcý ayarlarý
+*.user
+*.suo
+*.vcxproj.user
+*.pdb
+*.db
+*.opendb
+
+# Paket yöneticisi
+package-lock.json
+
+

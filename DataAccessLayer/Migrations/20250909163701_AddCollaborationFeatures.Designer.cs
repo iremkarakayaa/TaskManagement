@@ -3,6 +3,7 @@ using System;
 using DataAccessLayer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(TaskManagementDbContext))]
-    partial class TaskManagementDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250909163701_AddCollaborationFeatures")]
+    partial class AddCollaborationFeatures
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,50 +55,6 @@ namespace DataAccessLayer.Migrations
                     b.HasIndex("OwnerUserId");
 
                     b.ToTable("Boards");
-                });
-
-            modelBuilder.Entity("Entity.BoardInvitation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BoardId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("InvitedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("InvitedUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoardId");
-
-                    b.HasIndex("InvitedByUserId");
-
-                    b.HasIndex("InvitedUserId");
-
-                    b.ToTable("BoardInvitations");
                 });
 
             modelBuilder.Entity("Entity.BoardList", b =>
@@ -297,49 +256,6 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("CardHistory");
                 });
 
-            modelBuilder.Entity("Entity.ChecklistItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("AssignedUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("CardId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedUserId");
-
-                    b.HasIndex("CardId");
-
-                    b.ToTable("ChecklistItems");
-                });
-
             modelBuilder.Entity("Entity.TaskItem", b =>
                 {
                     b.Property<int>("Id")
@@ -417,33 +333,6 @@ namespace DataAccessLayer.Migrations
                         .IsRequired();
 
                     b.Navigation("OwnerUser");
-                });
-
-            modelBuilder.Entity("Entity.BoardInvitation", b =>
-                {
-                    b.HasOne("Entity.Board", "Board")
-                        .WithMany("Invitations")
-                        .HasForeignKey("BoardId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Entity.User", "InvitedByUser")
-                        .WithMany("SentInvitations")
-                        .HasForeignKey("InvitedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Entity.User", "InvitedUser")
-                        .WithMany("ReceivedInvitations")
-                        .HasForeignKey("InvitedUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Board");
-
-                    b.Navigation("InvitedByUser");
-
-                    b.Navigation("InvitedUser");
                 });
 
             modelBuilder.Entity("Entity.BoardList", b =>
@@ -532,24 +421,6 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Entity.ChecklistItem", b =>
-                {
-                    b.HasOne("Entity.User", "AssignedUser")
-                        .WithMany("AssignedChecklistItems")
-                        .HasForeignKey("AssignedUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Entity.Card", "Card")
-                        .WithMany("ChecklistItems")
-                        .HasForeignKey("CardId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedUser");
-
-                    b.Navigation("Card");
-                });
-
             modelBuilder.Entity("Entity.TaskItem", b =>
                 {
                     b.HasOne("Entity.User", "User")
@@ -563,8 +434,6 @@ namespace DataAccessLayer.Migrations
 
             modelBuilder.Entity("Entity.Board", b =>
                 {
-                    b.Navigation("Invitations");
-
                     b.Navigation("Lists");
 
                     b.Navigation("Members");
@@ -577,8 +446,6 @@ namespace DataAccessLayer.Migrations
 
             modelBuilder.Entity("Entity.Card", b =>
                 {
-                    b.Navigation("ChecklistItems");
-
                     b.Navigation("Comments");
 
                     b.Navigation("History");
@@ -588,8 +455,6 @@ namespace DataAccessLayer.Migrations
                 {
                     b.Navigation("AssignedCards");
 
-                    b.Navigation("AssignedChecklistItems");
-
                     b.Navigation("BoardMemberships");
 
                     b.Navigation("Boards");
@@ -597,10 +462,6 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("CardHistory");
 
                     b.Navigation("Comments");
-
-                    b.Navigation("ReceivedInvitations");
-
-                    b.Navigation("SentInvitations");
 
                     b.Navigation("Tasks");
                 });

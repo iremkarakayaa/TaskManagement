@@ -1,6 +1,6 @@
 ﻿using DataAccessLayer;
-using DataLayer.DataTransferObject.User; // RegisterDto ve LoginDto
-using Entity; // User entity
+using DataLayer.DataTransferObject.User; 
+using Entity; 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -19,19 +19,18 @@ public class AuthController : ControllerBase
         _context = context;
     }
 
-    // -------------------- REGISTER --------------------
+    // -------------------- REGISTER -------------------
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto model)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        // Aynı email kayıtlı mı kontrol et
         var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
         if (existingUser != null)
             return BadRequest(new { message = "Bu email zaten kullanılıyor." });
 
-        // Kullanıcı oluştur
+   
         var user = new User
         {
             Username = model.Username,
@@ -44,7 +43,7 @@ public class AuthController : ControllerBase
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        // Kayıt başarılı → frontend user objesi döndür
+
         return Ok(new
         {
             message = "Kayıt başarılı",
@@ -59,13 +58,17 @@ public class AuthController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+        // Email veya kullanıcı adı ile giriş yapılabilir
+        var user = await _context.Users.FirstOrDefaultAsync(u => 
+            u.Email.ToLower() == model.Email.ToLower() || 
+            u.Username.ToLower() == model.Email.ToLower());
+        
         if (user == null)
-            return Unauthorized(new { message = "Geçersiz email veya şifre" });
+            return Unauthorized(new { message = "Geçersiz email/kullanıcı adı veya şifre" });
 
         var passwordHash = HashPassword(model.Password);
         if (user.PasswordHash != passwordHash)
-            return Unauthorized(new { message = "Geçersiz email veya şifre" });
+            return Unauthorized(new { message = "Geçersiz email/kullanıcı adı veya şifre" });
 
         user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -73,9 +76,50 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             message = "Giriş başarılı",
-            token = "fake-jwt-token", // JWT ekleyeceksen buraya
+            token = "fake-jwt-token", 
             user = new { user.Id, user.Username, user.Email }
         });
+    }
+
+    // -------------------- PASSWORD RESET REQUEST --------------------
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto model)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+        if (user == null)
+            return Ok(new { message = "Eğer bu email adresi sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderilecektir." });
+
+        // Gerçek uygulamada burada email gönderilir
+        // Şimdilik sadece token oluşturuyoruz
+        var resetToken = Guid.NewGuid().ToString();
+        
+        // Reset token'ı veritabanında saklamak için yeni bir tablo gerekebilir
+        // Şimdilik basit bir yaklaşım kullanıyoruz
+        user.PasswordHash = resetToken; // Geçici olarak token'ı saklıyoruz
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Şifre sıfırlama bağlantısı email adresinize gönderildi." });
+    }
+
+    // -------------------- PASSWORD RESET --------------------
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // Gerçek uygulamada token doğrulaması yapılır
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.PasswordHash == model.Token);
+        if (user == null)
+            return BadRequest(new { message = "Geçersiz veya süresi dolmuş token." });
+
+        user.PasswordHash = HashPassword(model.NewPassword);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Şifreniz başarıyla sıfırlandı." });
     }
 
     // -------------------- HELPER: PASSWORD HASH --------------------
@@ -86,4 +130,16 @@ public class AuthController : ControllerBase
         var hash = sha256.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
     }
+}
+
+// -------------------- DTOs --------------------
+public class ForgotPasswordDto
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordDto
+{
+    public string Token { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }

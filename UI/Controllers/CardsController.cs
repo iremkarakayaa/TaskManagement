@@ -13,6 +13,10 @@ namespace UI.Controllers
         public DateTime? dueDate { get; set; }
         public bool isCompleted { get; set; } = false;
         public object checklist { get; set; } = new object(); // JSON olarak saklanacak
+        public object labels { get; set; } = new object(); // JSON olarak saklanacak
+        public string priority { get; set; } = "medium";
+        public string status { get; set; } = "pending";
+        public int? assignedUserId { get; set; }
     }
 
     [ApiController]
@@ -61,7 +65,12 @@ namespace UI.Controllers
                     ListId = request.listId,
                     DueDate = request.dueDate,
                     IsCompleted = request.isCompleted,
-                    Checklist = request.checklist != null ? System.Text.Json.JsonSerializer.Serialize(request.checklist) : "[]"
+                    Checklist = request.checklist != null ? System.Text.Json.JsonSerializer.Serialize(request.checklist) : "[]",
+                    Labels = request.labels != null ? System.Text.Json.JsonSerializer.Serialize(request.labels) : "[]",
+                    Priority = request.priority,
+                    Status = request.status,
+                    AssignedUserId = request.assignedUserId,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 Console.WriteLine($"Card ekleniyor: {card.Title}");
@@ -70,6 +79,18 @@ namespace UI.Controllers
                 Console.WriteLine("Database'e kaydediliyor...");
                 await _context.SaveChangesAsync();
                 Console.WriteLine($"Card başarıyla oluşturuldu: ID={card.Id}");
+
+                // Kart oluşturma geçmişi ekle
+                var historyEntry = new CardHistory
+                {
+                    CardId = card.Id,
+                    UserId = 1, // Şimdilik sabit, gerçek kullanıcı ID'si kullanılacak
+                    Action = "created",
+                    Description = "Kart oluşturuldu",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.CardHistory.Add(historyEntry);
+                await _context.SaveChangesAsync();
 
                 return CreatedAtAction(nameof(GetCardById), new { id = card.Id }, card);
             }
@@ -103,12 +124,52 @@ namespace UI.Controllers
                         c.ListId,
                         c.AssignedUserId,
                         c.Checklist,
+                        c.Labels,
+                        c.Priority,
+                        c.Status,
+                        c.CreatedAt,
+                        c.UpdatedAt,
                         AssignedUser = c.AssignedUser != null ? new
                         {
                             c.AssignedUser.Id,
                             c.AssignedUser.Username,
                             c.AssignedUser.Email
-                        } : null
+                        } : null,
+                        Comments = c.Comments
+                            .Where(cc => !cc.IsDeleted)
+                            .OrderBy(cc => cc.CreatedAt)
+                            .Select(cc => new
+                            {
+                                cc.Id,
+                                cc.Text,
+                                cc.CreatedAt,
+                                cc.UpdatedAt,
+                                User = new
+                                {
+                                    cc.User.Id,
+                                    cc.User.Username,
+                                    cc.User.Email
+                                }
+                            })
+                            .ToList(),
+                        History = c.History
+                            .OrderByDescending(ch => ch.CreatedAt)
+                            .Select(ch => new
+                            {
+                                ch.Id,
+                                ch.Action,
+                                ch.Description,
+                                ch.OldValue,
+                                ch.NewValue,
+                                ch.CreatedAt,
+                                User = new
+                                {
+                                    ch.User.Id,
+                                    ch.User.Username,
+                                    ch.User.Email
+                                }
+                            })
+                            .ToList()
                     })
                     .FirstOrDefaultAsync();
 
@@ -137,14 +198,66 @@ namespace UI.Controllers
                 if (existingCard == null)
                     return NotFound();
 
+                // Geçmiş kaydı için eski değerleri sakla
+                var oldTitle = existingCard.Title;
+                var oldDescription = existingCard.Description;
+                var oldAssignedUserId = existingCard.AssignedUserId;
+
                 existingCard.Title = card.Title;
                 existingCard.Description = card.Description;
                 existingCard.DueDate = card.DueDate;
                 existingCard.IsCompleted = card.IsCompleted;
                 existingCard.AssignedUserId = card.AssignedUserId;
+                existingCard.Labels = card.Labels;
+                existingCard.Priority = card.Priority;
+                existingCard.Status = card.Status;
+                existingCard.Checklist = card.Checklist;
+                existingCard.UpdatedAt = DateTime.UtcNow;
 
                 _context.Entry(existingCard).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
+
+                // Geçmiş kaydı ekle
+                var historyEntries = new List<CardHistory>();
+
+                if (oldTitle != card.Title)
+                {
+                    historyEntries.Add(new CardHistory
+                    {
+                        CardId = id,
+                        UserId = 1, // Şimdilik sabit, gerçek kullanıcı ID'si kullanılacak
+                        Action = "updated",
+                        Description = "Kart başlığı güncellendi",
+                        OldValue = oldTitle,
+                        NewValue = card.Title,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                if (oldAssignedUserId != card.AssignedUserId)
+                {
+                    var oldUser = oldAssignedUserId.HasValue ? 
+                        await _context.Users.FindAsync(oldAssignedUserId.Value) : null;
+                    var newUser = card.AssignedUserId.HasValue ? 
+                        await _context.Users.FindAsync(card.AssignedUserId.Value) : null;
+
+                    historyEntries.Add(new CardHistory
+                    {
+                        CardId = id,
+                        UserId = 1, // Şimdilik sabit, gerçek kullanıcı ID'si kullanılacak
+                        Action = "assigned",
+                        Description = "Kart ataması değiştirildi",
+                        OldValue = oldUser?.Username ?? "Atanmamış",
+                        NewValue = newUser?.Username ?? "Atanmamış",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                if (historyEntries.Any())
+                {
+                    _context.CardHistory.AddRange(historyEntries);
+                    await _context.SaveChangesAsync();
+                }
 
                 return Ok(existingCard);
             }

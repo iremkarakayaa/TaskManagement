@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import InvitationNotifications from './InvitationNotifications';
 
 const Header = ({ user, onLogout }) => {
     const navigate = useNavigate();
@@ -32,6 +33,14 @@ const Header = ({ user, onLogout }) => {
                                 >
                                     Panolar
                                 </button>
+                                
+                                <InvitationNotifications 
+                                    userId={user.id} 
+                                    onInvitationAccepted={(boardId) => {
+                                        // Davet kabul edildiğinde dashboard'u yenile
+                                        window.location.reload();
+                                    }}
+                                />
                                 
                                 <div className="user-menu">
                                     <button

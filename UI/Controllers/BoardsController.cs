@@ -77,6 +77,34 @@ namespace UI.Controllers
             }
         }
 
+        // GET: api/boards/user/{userId}
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetBoardsByUser(int userId)
+        {
+            try
+            {
+                var boards = await _context.Boards
+                    .Where(b => b.OwnerUserId == userId)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.Name,
+                        b.Description,
+                        b.OwnerUserId,
+                        b.CreatedAt,
+                        b.IsArchived
+                    })
+                    .ToListAsync();
+
+                return Ok(boards);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting user boards: {ex.Message}");
+                return StatusCode(500, new { message = "Kullanıcı panoları yüklenirken bir hata oluştu", error = ex.Message });
+            }
+        }
+
         // GET: api/boards/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBoardById(int id)
@@ -203,14 +231,22 @@ namespace UI.Controllers
         [HttpPut("{id}/archive")]
         public async Task<IActionResult> ArchiveBoard(int id, [FromBody] bool archived)
         {
-            var board = await _context.Boards.FindAsync(id);
-            if (board == null)
-                return NotFound();
+            try
+            {
+                var board = await _context.Boards.FindAsync(id);
+                if (board == null)
+                    return NotFound();
 
-            // board.IsArchived = archived; // Board entity’de eklemeniz gerek
-            await _context.SaveChangesAsync();
+                board.IsArchived = archived;
+                await _context.SaveChangesAsync();
 
-            return Ok(board);
+                return Ok(new { message = archived ? "Pano arşivlendi" : "Pano arşivden çıkarıldı" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error archiving board: {ex.Message}");
+                return StatusCode(500, new { message = "Pano arşivlenirken bir hata oluştu", error = ex.Message });
+            }
         }
     }
 }

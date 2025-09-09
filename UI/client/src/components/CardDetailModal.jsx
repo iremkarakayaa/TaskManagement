@@ -16,6 +16,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
     const [newLabel, setNewLabel] = useState('');
     const [newComment, setNewComment] = useState('');
     const [newChecklistItem, setNewChecklistItem] = useState('');
+    const [availableUsers, setAvailableUsers] = useState([]);
 
     useEffect(() => {
         setFormData({
@@ -28,7 +29,20 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
             // DÜZELTME: checklist'i her zaman diziye çevir
             checklist: Array.isArray(card.checklist) ? card.checklist : []
         });
+        fetchAvailableUsers();
     }, [card]);
+
+    const fetchAvailableUsers = async () => {
+        try {
+            const response = await fetch('http://localhost:5035/api/users');
+            if (response.ok) {
+                const users = await response.json();
+                setAvailableUsers(users);
+            }
+        } catch (err) {
+            console.error('Error fetching users:', err);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -75,11 +89,31 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
         }));
     };
 
-    const handleAddComment = () => {
+    const handleAddComment = async () => {
         if (newComment.trim()) {
-            // Burada backend'e yorum ekleme işlemi yapılacak
-            console.log('Adding comment:', newComment);
-            setNewComment('');
+            try {
+                const response = await fetch('http://localhost:5035/api/cardcomments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cardId: card.id,
+                        userId: 1, // Şimdilik sabit, gerçek kullanıcı ID'si kullanılacak
+                        text: newComment.trim()
+                    })
+                });
+
+                if (response.ok) {
+                    // Yorum eklendi, kartı yeniden yükle
+                    onUpdate(card);
+                    setNewComment('');
+                } else {
+                    console.error('Yorum eklenirken hata oluştu');
+                }
+            } catch (err) {
+                console.error('Error adding comment:', err);
+            }
         }
     };
 
@@ -135,7 +169,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
         }
     };
 
-    // ✅ toggle fonksiyonu
+    
     const handleToggleChecklistItemView = async (itemId) => {
         const updatedChecklist = (Array.isArray(formData.checklist) ? formData.checklist : []).map(
             (item) =>
@@ -269,6 +303,33 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                     <option value="pending">Bekliyor</option>
                                     <option value="in-progress">Devam Ediyor</option>
                                     <option value="completed">Tamamlandı</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="assignedUserId" className="form-label">
+                                    Atanan Kullanıcı
+                                </label>
+                                <select
+                                    id="assignedUserId"
+                                    name="assignedUserId"
+                                    className="form-input"
+                                    value={card.assignedUserId || ''}
+                                    onChange={(e) => {
+                                        const userId = e.target.value ? parseInt(e.target.value) : null;
+                                        // Kartı güncelle
+                                        updateCard({
+                                            ...card,
+                                            assignedUserId: userId
+                                        });
+                                    }}
+                                >
+                                    <option value="">Atanmamış</option>
+                                    {availableUsers.map(user => (
+                                        <option key={user.id} value={user.id}>
+                                            {user.username} ({user.email})
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -534,10 +595,10 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
 
                                 {card.comments && card.comments.length > 0 ? (
                                     <div className="comments-list">
-                                        {card.comments.map((comment, index) => (
-                                            <div key={index} className="comment-item">
+                                        {card.comments.map((comment) => (
+                                            <div key={comment.id} className="comment-item">
                                                 <div className="comment-header">
-                                                    <span className="comment-author">{comment.author || 'Kullanıcı'}</span>
+                                                    <span className="comment-author">{comment.user?.username || 'Kullanıcı'}</span>
                                                     <span className="comment-date">
                                                         {new Date(comment.createdAt).toLocaleDateString('tr-TR')}
                                                     </span>
@@ -551,6 +612,28 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                 )}
                             </div>
                         </div>
+
+                        {/* Kart Geçmişi */}
+                        {card.history && card.history.length > 0 && (
+                            <div className="card-section">
+                                <h3>Kart Geçmişi</h3>
+                                <div className="history-list">
+                                    {card.history.map((historyItem) => (
+                                        <div key={historyItem.id} className="history-item">
+                                            <div className="history-header">
+                                                <span className="history-action">{historyItem.description}</span>
+                                                <span className="history-date">
+                                                    {new Date(historyItem.createdAt).toLocaleDateString('tr-TR')}
+                                                </span>
+                                            </div>
+                                            <div className="history-user">
+                                                {historyItem.user?.username || 'Kullanıcı'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Tarih Bilgileri */}
                         <div className="card-section">

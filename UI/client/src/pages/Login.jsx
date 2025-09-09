@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 function Login({ onLogin }) {
     const [formData, setFormData] = useState({
@@ -9,6 +10,7 @@ function Login({ onLogin }) {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -26,6 +28,7 @@ function Login({ onLogin }) {
 
             // Token olmadan sadece user objesini alıyoruz
             if (response.data.user) {
+                try { localStorage.setItem('authUser', JSON.stringify(response.data.user)); } catch {}
                 onLogin(response.data.user); // App state güncelleniyor
                 navigate("/dashboard");
             } else {
@@ -60,16 +63,16 @@ function Login({ onLogin }) {
 
                         <div className="form-group">
                             <label htmlFor="email" className="form-label">
-                                E-posta
+                                E-posta veya Kullanıcı Adı
                             </label>
                             <input
-                                type="email"
+                                type="text"
                                 id="email"
                                 name="email"
                                 className="form-input"
                                 value={formData.email}
                                 onChange={handleChange}
-                                placeholder="ornek@email.com"
+                                placeholder="ornek@email.com veya kullaniciadi"
                                 required
                                 autoFocus
                             />
@@ -102,6 +105,15 @@ function Login({ onLogin }) {
 
                     <div className="auth-footer">
                         <p>
+                            <button
+                                type="button"
+                                className="auth-link"
+                                onClick={() => setShowForgotPassword(true)}
+                            >
+                                Şifremi Unuttum
+                            </button>
+                        </p>
+                        <p>
                             Hesabınız yok mu?{" "}
                             <Link to="/register" className="auth-link">
                                 Kayıt Ol
@@ -110,6 +122,12 @@ function Login({ onLogin }) {
                     </div>
                 </div>
             </div>
+
+            {showForgotPassword && (
+                <ForgotPasswordModal
+                    onClose={() => setShowForgotPassword(false)}
+                />
+            )}
         </div>
     );
 }

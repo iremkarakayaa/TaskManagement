@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const CreateCardModal = ({ onClose, onSubmit }) => {
     const [formData, setFormData] = useState({
@@ -6,9 +6,27 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
         description: '',
         dueDate: '',
         isCompleted: false,
-        checklist: []
+        checklist: [],
+        assignedUserId: null
     });
     const [newChecklistItem, setNewChecklistItem] = useState('');
+    const [availableUsers, setAvailableUsers] = useState([]);
+
+    useEffect(() => {
+        fetchAvailableUsers();
+    }, []);
+
+    const fetchAvailableUsers = async () => {
+        try {
+            const response = await fetch('http://localhost:5035/api/users');
+            if (response.ok) {
+                const users = await response.json();
+                setAvailableUsers(users);
+            }
+        } catch (err) {
+            console.error('Error fetching users:', err);
+        }
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -17,6 +35,7 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
                 ...formData,
                 dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null
             };
+            console.log('CreateCardModal - Submitting data:', submitData);
             onSubmit(submitData);
         }
     };
@@ -106,6 +125,26 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
                             value={formData.dueDate}
                             onChange={handleChange}
                         />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="assignedUserId" className="form-label">
+                            Atanan Kullanıcı
+                        </label>
+                        <select
+                            id="assignedUserId"
+                            name="assignedUserId"
+                            className="form-input"
+                            value={formData.assignedUserId || ''}
+                            onChange={handleChange}
+                        >
+                            <option value="">Atanmamış</option>
+                            {availableUsers.map(user => (
+                                <option key={user.id} value={user.id}>
+                                    {user.username} ({user.email})
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="form-group">

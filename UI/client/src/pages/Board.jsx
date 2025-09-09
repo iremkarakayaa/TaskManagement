@@ -7,6 +7,8 @@ import List from '../components/List';
 import CreateListModal from '../components/CreateListModal';
 import CreateCardModal from '../components/CreateCardModal';
 import CardDetailModal from '../components/CardDetailModal';
+import ModernCardDetailModal from '../components/ModernCardDetailModal';
+import BoardCollaborationModal from '../components/BoardCollaborationModal';
 
 const Board = ({ user, onLogout }) => {
     const { boardId } = useParams();
@@ -20,6 +22,8 @@ const Board = ({ user, onLogout }) => {
     const [showCreateCardModal, setShowCreateCardModal] = useState(false);
     const [selectedCard, setSelectedCard] = useState(null);
     const [selectedListForCard, setSelectedListForCard] = useState(null);
+    const [newlyCreatedCard, setNewlyCreatedCard] = useState(null);
+    const [showCollaborationModal, setShowCollaborationModal] = useState(false);
 
     const API_BASE = "http://localhost:5035/api";
 
@@ -103,6 +107,10 @@ const Board = ({ user, onLogout }) => {
                     ? { ...list, cards: [...(list.cards || []), response.data] }
                     : list
             ));
+            
+            // Yeni oluşturulan kartı modern arayüzde aç
+            console.log('Board - Card created, setting newlyCreatedCard:', response.data);
+            setNewlyCreatedCard(response.data);
             setError(null); // Önceki hatayı temizle
         } catch (err) {
             console.error('Error creating card:', err);
@@ -249,6 +257,14 @@ const Board = ({ user, onLogout }) => {
             <div className="board-page">
                 <div className="board-header-bar board-header-minimal">
                     <h1 className="board-title-only">{board?.name}</h1>
+                    <div className="board-actions">
+                        <button 
+                            className="btn btn-secondary"
+                            onClick={() => setShowCollaborationModal(true)}
+                        >
+                            👥 İşbirliği
+                        </button>
+                    </div>
                 </div>
                 
                 <div className="container">
@@ -293,8 +309,10 @@ const Board = ({ user, onLogout }) => {
             </div>
 
             {showCreateListModal && <CreateListModal onClose={() => setShowCreateListModal(false)} onSubmit={handleCreateList} />}
-            {showCreateCardModal && <CreateCardModal onClose={() => { setShowCreateCardModal(false); setSelectedListForCard(null); }} onSubmit={(data) => handleCreateCard(selectedListForCard, data)} />}
-            {selectedCard && <CardDetailModal card={selectedCard} onClose={() => setSelectedCard(null)} onUpdate={handleEditCard} onDelete={(cardId) => { handleDeleteCard(cardId, selectedCard.listId); setSelectedCard(null); }} />}
+            {showCreateCardModal && <ModernCardDetailModal boardId={parseInt(boardId)} card={{ title: '', description: '', listId: selectedListForCard, isNew: true }} onClose={() => { setShowCreateCardModal(false); setSelectedListForCard(null); }} onUpdate={(data) => handleCreateCard(selectedListForCard, data)} onDelete={() => {}} />}
+            {selectedCard && <ModernCardDetailModal boardId={parseInt(boardId)} card={selectedCard} onClose={() => setSelectedCard(null)} onUpdate={handleEditCard} onDelete={(cardId) => { handleDeleteCard(cardId, selectedCard.listId); setSelectedCard(null); }} />}
+            {newlyCreatedCard && <ModernCardDetailModal boardId={parseInt(boardId)} card={newlyCreatedCard} onClose={() => setNewlyCreatedCard(null)} onUpdate={handleEditCard} onDelete={(cardId) => { handleDeleteCard(cardId, newlyCreatedCard.listId); setNewlyCreatedCard(null); }} />}
+            {showCollaborationModal && <BoardCollaborationModal boardId={boardId} onClose={() => setShowCollaborationModal(false)} />}
         </div>
     );
 };

@@ -28,12 +28,27 @@ const Dashboard = ({ user, onLogout }) => {
         }
     };
 
-    // Tüm board'ları çek
+    // Kullanıcının panolarını çek (sahip olduğu + üye olduğu)
     const fetchBoards = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_BASE}/boards`);
-            setBoards(response.data);
+            // Kullanıcının sahip olduğu panolar
+            const ownedBoardsResponse = await axios.get(`${API_BASE}/boards/user/${user.id}`);
+            const ownedBoards = ownedBoardsResponse.data;
+            
+            // Kullanıcının üye olduğu panolar
+            const memberBoardsResponse = await axios.get(`${API_BASE}/boardcollaboration/user/${user.id}/boards`);
+            const memberBoards = memberBoardsResponse.data;
+            
+            // Tüm panoları birleştir ve tekrarları kaldır
+            const allBoards = [...ownedBoards];
+            memberBoards.forEach(memberBoard => {
+                if (!allBoards.find(board => board.id === memberBoard.id)) {
+                    allBoards.push(memberBoard);
+                }
+            });
+            
+            setBoards(allBoards);
             setError(null);
         } catch (err) {
             setError('Panolar yüklenirken bir hata oluştu.');

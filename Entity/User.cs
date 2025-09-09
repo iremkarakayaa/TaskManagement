@@ -26,6 +26,12 @@ namespace Entity
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public ICollection<Board> Boards { get; set; } = new List<Board>();
         public ICollection<Card> AssignedCards { get; set; } = new List<Card>();
+        public ICollection<BoardMember> BoardMemberships { get; set; } = new List<BoardMember>();
+        public ICollection<CardComment> Comments { get; set; } = new List<CardComment>();
+        public ICollection<CardHistory> CardHistory { get; set; } = new List<CardHistory>();
+        public ICollection<ChecklistItem> AssignedChecklistItems { get; set; } = new List<ChecklistItem>();
+        public ICollection<BoardInvitation> ReceivedInvitations { get; set; } = new List<BoardInvitation>();
+        public ICollection<BoardInvitation> SentInvitations { get; set; } = new List<BoardInvitation>();
 
     }
 }

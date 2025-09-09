@@ -4,6 +4,8 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
+        dueDate: '',
+        isCompleted: false,
         checklist: []
     });
     const [newChecklistItem, setNewChecklistItem] = useState('');
@@ -11,7 +13,11 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (formData.title.trim()) {
-            onSubmit(formData);
+            const submitData = {
+                ...formData,
+                dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null
+            };
+            onSubmit(submitData);
         }
     };
 
@@ -86,6 +92,35 @@ const CreateCardModal = ({ onClose, onSubmit }) => {
                             placeholder="Kart açıklaması (opsiyonel)..."
                             rows="3"
                         />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="dueDate" className="form-label">
+                            Bitiş Tarihi
+                        </label>
+                        <input
+                            type="datetime-local"
+                            id="dueDate"
+                            name="dueDate"
+                            className="form-input"
+                            value={formData.dueDate}
+                            onChange={handleChange}
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">
+                            <input
+                                type="checkbox"
+                                name="isCompleted"
+                                checked={formData.isCompleted}
+                                onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    isCompleted: e.target.checked
+                                }))}
+                            />
+                            Tamamlandı olarak işaretle
+                        </label>
                     </div>
 
                     <div className="form-group">

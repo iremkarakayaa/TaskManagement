@@ -39,27 +39,88 @@ namespace UI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetBoards()
         {
-            var boards = await _context.Boards
-                .Include(b => b.Lists)
-                .ThenInclude(l => l.Cards)
-                .ToListAsync();
+            try
+            {
+                var boards = await _context.Boards
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.Name,
+                        b.Description,
+                        b.OwnerUserId,
+                        b.CreatedAt,
+                        Lists = b.Lists.Select(l => new
+                        {
+                            l.Id,
+                            l.Name,
+                            l.Order,
+                            Cards = l.Cards.Select(c => new
+                            {
+                                c.Id,
+                                c.Title,
+                                c.Description,
+                                c.DueDate,
+                                c.IsCompleted,
+                                c.ListId,
+                                c.Checklist
+                            }).ToList()
+                        }).ToList()
+                    })
+                    .ToListAsync();
 
-            return Ok(boards);
+                return Ok(boards);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting boards: {ex.Message}");
+                return StatusCode(500, new { message = "Panolar yüklenirken bir hata oluştu", error = ex.Message });
+            }
         }
 
         // GET: api/boards/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBoardById(int id)
         {
-            var board = await _context.Boards
-                .Include(b => b.Lists)
-                .ThenInclude(l => l.Cards)
-                .FirstOrDefaultAsync(b => b.Id == id);
+            try
+            {
+                var board = await _context.Boards
+                    .Where(b => b.Id == id)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.Name,
+                        b.Description,
+                        b.OwnerUserId,
+                        b.CreatedAt,
+                        Lists = b.Lists.Select(l => new
+                        {
+                            l.Id,
+                            l.Name,
+                            l.Order,
+                            Cards = l.Cards.Select(c => new
+                            {
+                                c.Id,
+                                c.Title,
+                                c.Description,
+                                c.DueDate,
+                                c.IsCompleted,
+                                c.ListId,
+                                c.Checklist
+                            }).ToList()
+                        }).ToList()
+                    })
+                    .FirstOrDefaultAsync();
 
-            if (board == null)
-                return NotFound();
+                if (board == null)
+                    return NotFound();
 
-            return Ok(board);
+                return Ok(board);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting board: {ex.Message}");
+                return StatusCode(500, new { message = "Pano yüklenirken bir hata oluştu", error = ex.Message });
+            }
         }
 
         // POST: api/boards

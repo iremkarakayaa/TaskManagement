@@ -70,40 +70,16 @@ const List = ({
                                     </div>
                                 </div>
                             ) : (
-                                <h3 className="list-title" onClick={() => setIsEditing(true)}>
+                                <h3 className="list-title" onDoubleClick={() => setIsEditing(true)} title="Başlığı düzenlemek için çift tıklayın">
                                     {list.name}
                                 </h3>
                             )}
                         </div>
 
-                        {/* Liste İstatistikleri */}
-                        <div className="list-stats">
-                            <span className="card-count">
-                                {getCardCount()} kart
-                            </span>
-                            {getCompletedCount() > 0 && (
-                                <span className="completed-count">
-                                    ✓ {getCompletedCount()}
-                                </span>
-                            )}
-                        </div>
+                        {/* Liste İstatistikleri kaldırıldı */}
 
                         {/* Liste Aksiyonları */}
                         <div className="list-actions">
-                                                    <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => onAddCard(list.id)}
-                            title="Kart Ekle"
-                        >
-                            +
-                        </button>
-                            <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => setIsEditing(true)}
-                                title="Listeyi Düzenle"
-                            >
-                                ✏️
-                            </button>
                             <button
                                 className="btn btn-sm btn-danger"
                                 onClick={() => onDeleteList(list.id)}
@@ -117,7 +93,7 @@ const List = ({
 
 
                     {/* Kartlar */}
-                    <Droppable droppableId={list.id.toString()} type="card">
+                    <Droppable droppableId={list.id.toString()} type="card" isDropDisabled={false} isCombineEnabled={false}>
                         {(provided, snapshot) => (
                             <div
                                 ref={provided.innerRef}

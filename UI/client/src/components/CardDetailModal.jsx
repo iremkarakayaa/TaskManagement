@@ -10,7 +10,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
         priority: card.priority || 'medium',
         status: card.status || 'pending',
         labels: card.labels || [],
-        checklist: card.checklist || []
+        // DÜZELTME: checklist'i her zaman diziye çevir
+        checklist: Array.isArray(card.checklist) ? card.checklist : []
     });
     const [newLabel, setNewLabel] = useState('');
     const [newComment, setNewComment] = useState('');
@@ -24,7 +25,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
             priority: card.priority || 'medium',
             status: card.status || 'pending',
             labels: card.labels || [],
-            checklist: card.checklist || []
+            // DÜZELTME: checklist'i her zaman diziye çevir
+            checklist: Array.isArray(card.checklist) ? card.checklist : []
         });
     }, [card]);
 
@@ -89,7 +91,11 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                 completed: false
             };
 
-            const updatedChecklist = [...(card.checklist || []), newItem];
+            // DÜZELTME: mevcut checklist'i güvenli şekilde al
+            const updatedChecklist = [
+                ...(Array.isArray(card.checklist) ? card.checklist : []),
+                newItem
+            ];
 
             try {
                 await updateCard({
@@ -102,24 +108,23 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
             }
         }
     };
+
     //const handleToggleChecklistItem = async (itemId) => {
-    //    const updatedChecklist = formData.checklist.map(item => item.id === itemId ? { ...item, completed: !item.completed } : item);
+    //    // DÜZELTME: formData.checklist dizi değilse koru
+    //    const base = Array.isArray(formData.checklist) ? formData.checklist : [];
+    //    const updatedChecklist = base.map(item => item.id === itemId ? { ...item, completed: !item.completed } : item);
     //    setFormData(prev => ({ ...prev, checklist: updatedChecklist }));
     //    try {
     //        await updateCard({ ...card, checklist: updatedChecklist });
     //    }
     //    catch (err) { console.error('Error updating checklist:', err); }
-    //}; const handleRemoveChecklistItem = async (itemId) => {
-    //    const updatedChecklist = card.checklist.filter(item => item.id !== itemId);
-    //    try { await updateCard({ ...card, checklist: updatedChecklist }); }
-    //    catch (err) {
-    //        console.error('Error removing checklist item:', err);
-    //    }
     //};
 
     const handleRemoveChecklistItem = async (itemId) => {
-        const updatedChecklist = card.checklist.filter(item => item.id !== itemId);
-        
+        // DÜZELTME: card.checklist dizi değilse koru
+        const updatedChecklist = (Array.isArray(card.checklist) ? card.checklist : [])
+            .filter(item => item.id !== itemId);
+
         try {
             await updateCard({
                 ...card,
@@ -130,20 +135,25 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
         }
     };
 
+    // ✅ toggle fonksiyonu
     const handleToggleChecklistItemView = async (itemId) => {
-        const updatedChecklist = card.checklist.map(item =>
-            item.id === itemId ? { ...item, completed: !item.completed } : item
+        const updatedChecklist = (Array.isArray(formData.checklist) ? formData.checklist : []).map(
+            (item) =>
+                item.id === itemId
+                    ? { ...item, completed: !item.completed }
+                    : item
         );
 
         try {
             await updateCard({
-                ...card,
-                checklist: updatedChecklist
+                ...formData,
+                checklist: updatedChecklist,
             });
         } catch (err) {
-            console.error('Error updating checklist:', err);
+            console.error("Error updating checklist:", err);
         }
     };
+
 
     const handleDelete = () => {
         if (window.confirm('Bu kartı silmek istediğinizden emin misiniz?')) {
@@ -180,7 +190,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                         ×
                     </button>
                 </div>
-                
+
                 {isEditing ? (
                     <form onSubmit={handleSubmit} className="card-edit-form">
                         <div className="form-group">
@@ -198,7 +208,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                 autoFocus
                             />
                         </div>
-                        
+
                         <div className="form-group">
                             <label htmlFor="description" className="form-label">
                                 Açıklama
@@ -274,8 +284,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                     onChange={(e) => setNewLabel(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLabel())}
                                 />
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     className="btn btn-sm btn-secondary"
                                     onClick={handleAddLabel}
                                 >
@@ -309,8 +319,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                     onChange={(e) => setNewChecklistItem(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddChecklistItem())}
                                 />
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     className="btn btn-sm btn-secondary"
                                     onClick={handleAddChecklistItem}
                                 >
@@ -318,24 +328,18 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                 </button>
                             </div>
                             <div className="checklist-display">
-                                {formData.checklist.map((item) => (
+                                {/* DÜZELTME: güvenli map */}
+                                {(Array.isArray(formData.checklist) ? formData.checklist : []).map((item) => (
                                     <div key={item.id} className="checklist-item">
-                                                                                    <input
-                                                type="checkbox"
-                                                checked={item.completed}
-                                                onChange={() => handleToggleChecklistItemView(item.id)}
-                                                className="checklist-checkbox"
-                                            />
-                                                                                    <span className={`checklist-text ${item.completed ? 'completed' : ''}`}>
-                                                {item.text}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="checklist-remove"
-                                                onClick={() => handleRemoveChecklistItem(item.id)}
-                                            >
-                                                ×
-                                            </button>
+                                        <input
+                                            type="checkbox"
+                                            checked={item.completed}
+                                            onChange={() => handleToggleChecklistItemView(item.id)}
+                                            className="checklist-checkbox"
+                                        />
+                                        <span className={`checklist-text ${item.completed ? 'completed' : ''}`}>
+                                            {item.text}
+                                        </span>
                                         <button
                                             type="button"
                                             className="checklist-remove"
@@ -347,7 +351,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="form-actions">
                             <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
                                 İptal
@@ -361,17 +365,17 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                     <div className="card-details">
                         {/* Kart Başlığı */}
                         <div className="card-section">
-                            <h3>Başlık</h3>
+                            <h3>başlık</h3>
                             <p className="card-title-text">{card.title}</p>
                         </div>
-                        
+
                         {/* Öncelik ve Durum */}
                         <div className="card-section">
                             <div className="card-meta-row">
                                 {card.priority && (
                                     <div className="meta-item">
                                         <span className="meta-label">Öncelik:</span>
-                                        <span 
+                                        <span
                                             className="priority-badge"
                                             style={{ backgroundColor: getPriorityColor(card.priority) }}
                                         >
@@ -379,11 +383,11 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                         </span>
                                     </div>
                                 )}
-                                
+
                                 {card.status && (
                                     <div className="meta-item">
                                         <span className="meta-label">Durum:</span>
-                                        <span 
+                                        <span
                                             className="status-badge"
                                             style={{ backgroundColor: getStatusColor(card.status) }}
                                         >
@@ -430,7 +434,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                         {/* Kontrol Listesi */}
                         <div className="card-section">
                             <h3>Kontrol Listesi</h3>
-                            {card.checklist && card.checklist.length > 0 ? (
+                            {/* DÜZELTME: checklist'in dizi olduğunu koşulda garanti et */}
+                            {Array.isArray(card.checklist) && card.checklist.length > 0 ? (
                                 <>
                                     <div className="checklist-display">
                                         {card.checklist.map((item) => (
@@ -456,10 +461,10 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                     </div>
                                     <div className="checklist-progress">
                                         <div className="progress-bar">
-                                            <div 
-                                                className="progress-fill" 
-                                                style={{ 
-                                                    width: `${(card.checklist.filter(item => item.completed).length / card.checklist.length) * 100}%` 
+                                            <div
+                                                className="progress-fill"
+                                                style={{
+                                                    width: `${(card.checklist.filter(item => item.completed).length / card.checklist.length) * 100}%`
                                                 }}
                                             ></div>
                                         </div>
@@ -471,7 +476,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                             ) : (
                                 <p className="no-checklist">Henüz kontrol listesi öğesi yok</p>
                             )}
-                            
+
                             {/* Kontrol Listesi Ekleme */}
                             <div className="checklist-add-section">
                                 <div className="checklist-input">
@@ -483,8 +488,8 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                         onChange={(e) => setNewChecklistItem(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddChecklistItem())}
                                     />
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         className="btn btn-sm btn-secondary"
                                         onClick={handleAddChecklistItem}
                                     >
@@ -519,14 +524,14 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                         onChange={(e) => setNewComment(e.target.value)}
                                         rows="3"
                                     />
-                                    <button 
+                                    <button
                                         className="btn btn-sm btn-primary"
                                         onClick={handleAddComment}
                                     >
                                         Yorum Ekle
                                     </button>
                                 </div>
-                                
+
                                 {card.comments && card.comments.length > 0 ? (
                                     <div className="comments-list">
                                         {card.comments.map((comment, index) => (
@@ -562,7 +567,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                 )}
                             </div>
                         </div>
-                        
+
                         {/* Aksiyon Butonları */}
                         <div className="card-actions">
                             <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>

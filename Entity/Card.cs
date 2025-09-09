@@ -12,6 +12,7 @@ namespace Entity
 
         public int ListId { get; set; }
         public int? AssignedUserId { get; set; } // Opsiyonel atama
+        public string Checklist { get; set; } = "[]"; // JSON string olarak saklanacak
 
         // Navigation Properties
         public BoardList List { get; set; }

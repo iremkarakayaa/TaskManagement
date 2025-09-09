@@ -71,21 +71,44 @@ const Board = ({ user, onLogout }) => {
     // Yeni kart oluştur
     const handleCreateCard = async (listId, cardData) => {
         try {
-            const response = await axios.post(`${API_BASE}/cards`, {
-                listId: parseInt(listId),
+            if (!listId || isNaN(parseInt(listId))) {
+                console.error('Invalid listId:', listId);
+                setError('Geçersiz liste ID');
+                return;
+            }
+
+            const parsedListId = parseInt(listId);
+            console.log('Creating card with data:', {
+                listId: parsedListId,
                 title: cardData.title,
                 description: cardData.description || '',
+                dueDate: cardData.dueDate || null,
+                isCompleted: cardData.isCompleted || false,
                 checklist: cardData.checklist || []
             });
+
+            const response = await axios.post(`${API_BASE}/cards`, {
+                listId: parsedListId,
+                title: cardData.title,
+                description: cardData.description || '',
+                dueDate: cardData.dueDate || null,
+                isCompleted: cardData.isCompleted || false,
+                checklist: cardData.checklist || []
+            });
+
+            console.log('Card created successfully:', response.data);
 
             setLists(lists.map(list =>
                 list.id === parseInt(listId)
                     ? { ...list, cards: [...(list.cards || []), response.data] }
                     : list
             ));
+            setError(null); // Önceki hatayı temizle
         } catch (err) {
-            setError('Kart oluşturulurken bir hata oluştu.');
-            console.error(err);
+            console.error('Error creating card:', err);
+            console.error('Error response:', err.response);
+            console.error('Error data:', err.response?.data);
+            setError(err.response?.data?.message || 'Kart oluşturulurken bir hata oluştu.');
         }
     };
 
@@ -128,6 +151,7 @@ const Board = ({ user, onLogout }) => {
         const { source, destination, type } = result;
 
         if (type === 'list') {
+            // Liste sıralaması değiştirme
             const newLists = Array.from(lists);
             const [removed] = newLists.splice(source.index, 1);
             newLists.splice(destination.index, 0, removed);
@@ -136,26 +160,37 @@ const Board = ({ user, onLogout }) => {
             setLists(updatedLists);
 
             try {
-                await Promise.all(updatedLists.map(list => axios.put(`${API_BASE}/lists/${list.id}`, { name: list.name, order: list.order })));
+                await Promise.all(updatedLists.map(list => 
+                    axios.put(`${API_BASE}/lists/${list.id}`, { 
+                        name: list.name, 
+                        order: list.order 
+                    })
+                ));
             } catch (err) {
-                console.error(err);
+                console.error('Error updating list order:', err);
                 fetchBoardData();
             }
         } else if (type === 'card') {
+            // Kart taşıma
             const sourceList = lists.find(list => list.id == source.droppableId);
             const destList = lists.find(list => list.id == destination.droppableId);
+            
             if (!sourceList || !destList) return;
 
             const sourceCards = Array.from(sourceList.cards || []);
             const destCards = Array.from(destList.cards || []);
             const [removed] = sourceCards.splice(source.index, 1);
 
+            // Kartı yeni listeye ekle
             if (source.droppableId === destination.droppableId) {
+                // Aynı liste içinde taşıma
                 destCards.splice(destination.index, 0, removed);
             } else {
+                // Farklı listeye taşıma
                 destCards.splice(destination.index, 0, removed);
             }
 
+            // State'i güncelle
             const newLists = lists.map(list => {
                 if (list.id == sourceList.id) return { ...list, cards: sourceCards };
                 if (list.id == destList.id) return { ...list, cards: destCards };
@@ -164,9 +199,15 @@ const Board = ({ user, onLogout }) => {
             setLists(newLists);
 
             try {
-                await axios.put(`${API_BASE}/cards/${removed.id}/move`, { listId: parseInt(destination.droppableId), order: destination.index });
+                // Backend'e kart taşıma isteği gönder
+                await axios.put(`${API_BASE}/cards/${removed.id}/move`, { 
+                    listId: parseInt(destination.droppableId), 
+                    order: destination.index 
+                });
+                console.log(`Card ${removed.id} moved to list ${destination.droppableId}`);
             } catch (err) {
-                console.error(err);
+                console.error('Error moving card:', err);
+                // Hata durumunda verileri yeniden yükle
                 fetchBoardData();
             }
         }
@@ -206,14 +247,19 @@ const Board = ({ user, onLogout }) => {
             <Header user={user} onLogout={onLogout} />
 
             <div className="board-page">
+                <div className="board-header-bar board-header-minimal">
+                    <h1 className="board-title-only">{board?.name}</h1>
+                </div>
+                
                 <div className="container">
-                    <div className="board-header">
-                        <h1>{board?.title}</h1>
-                        {board?.description && <p>{board.description}</p>}
-                    </div>
+                    {board?.description && (
+                        <div className="board-description">
+                            <p>{board.description}</p>
+                        </div>
+                    )}
 
                     <DragDropContext onDragEnd={handleDragEnd}>
-                        <Droppable droppableId="lists" direction="horizontal" type="list">
+                        <Droppable droppableId="lists" direction="horizontal" type="list" isDropDisabled={false} isCombineEnabled={false}>
                             {(provided) => (
                                 <div className="board-lists" ref={provided.innerRef} {...provided.droppableProps}>
                                     {lists.map((list, index) => (
@@ -223,7 +269,10 @@ const Board = ({ user, onLogout }) => {
                                             index={index}
                                             onEditList={handleEditList}
                                             onDeleteList={handleDeleteList}
-                                            onAddCard={setShowCreateCardModal}
+                                            onAddCard={(listId) => {
+                                                setSelectedListForCard(listId);
+                                                setShowCreateCardModal(true);
+                                            }}
                                             onEditCard={handleEditCard}
                                             onDeleteCard={handleDeleteCard}
                                             onCardClick={setSelectedCard}

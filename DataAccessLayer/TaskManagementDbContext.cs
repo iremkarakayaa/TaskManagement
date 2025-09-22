@@ -24,6 +24,7 @@ namespace DataAccessLayer
         public DbSet<CardHistory> CardHistory { get; set; }
         public DbSet<ChecklistItem> ChecklistItems { get; set; }
         public DbSet<BoardInvitation> BoardInvitations { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -134,6 +135,25 @@ namespace DataAccessLayer
                 .WithMany(u => u.SentInvitations)
                 .HasForeignKey(bi => bi.InvitedByUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Notification ilişkileri
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Board)
+                .WithMany()
+                .HasForeignKey(n => n.BoardId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Card)
+                .WithMany()
+                .HasForeignKey(n => n.CardId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

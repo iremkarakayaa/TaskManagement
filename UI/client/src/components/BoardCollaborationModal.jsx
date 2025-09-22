@@ -8,6 +8,8 @@ const BoardCollaborationModal = ({ boardId, onClose }) => {
     const [error, setError] = useState('');
     const [availableUsers, setAvailableUsers] = useState([]);
     const [selectedUserId, setSelectedUserId] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [showSearchResults, setShowSearchResults] = useState(false);
 
     const API_BASE = "http://localhost:5035/api";
 
@@ -38,6 +40,38 @@ const BoardCollaborationModal = ({ boardId, onClose }) => {
         } catch (err) {
             console.error('Error fetching users:', err);
         }
+    };
+
+    const handleEmailSearch = (e) => {
+        const query = e.target.value;
+        setInviteEmail(query);
+        
+        if (query.trim().length > 0) {
+            // Email veya username'de arama yap
+            const filteredUsers = availableUsers.filter(user => 
+                user.email.toLowerCase().includes(query.toLowerCase()) ||
+                user.username.toLowerCase().includes(query.toLowerCase())
+            );
+            setSearchResults(filteredUsers);
+            setShowSearchResults(true);
+        } else {
+            setSearchResults([]);
+            setShowSearchResults(false);
+        }
+    };
+
+    const selectUser = (user) => {
+        setInviteEmail(user.email);
+        setSelectedUserId(user.id);
+        setSearchResults([]);
+        setShowSearchResults(false);
+    };
+
+    const handleEmailBlur = () => {
+        // Biraz gecikme ile kapat (dropdown'a tıklama için zaman tanı)
+        setTimeout(() => {
+            setShowSearchResults(false);
+        }, 200);
     };
 
     const handleInviteUser = async (e) => {
@@ -148,19 +182,42 @@ const BoardCollaborationModal = ({ boardId, onClose }) => {
                         <h3>Kullanıcı Davet Et</h3>
                         <form onSubmit={handleInviteUser} className="invite-form">
                             <div className="form-group">
-                                <select
-                                    className="form-input"
-                                    value={selectedUserId}
-                                    onChange={(e) => setSelectedUserId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">Kullanıcı seçin</option>
-                                    {availableUsers.map(user => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.username} ({user.email})
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="email-search-container">
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Email veya kullanıcı adı yazın..."
+                                        value={inviteEmail}
+                                        onChange={handleEmailSearch}
+                                        onBlur={handleEmailBlur}
+                                        onFocus={() => inviteEmail.trim().length > 0 && setShowSearchResults(true)}
+                                        required
+                                    />
+                                    
+                                    {/* Arama Sonuçları Dropdown */}
+                                    {showSearchResults && searchResults.length > 0 && (
+                                        <div className="email-search-results">
+                                            {searchResults.map((user) => (
+                                                <div
+                                                    key={user.id}
+                                                    className="email-search-item"
+                                                    onClick={() => selectUser(user)}
+                                                >
+                                                    <div className="email-search-name">{user.username}</div>
+                                                    <div className="email-search-email">{user.email}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    {showSearchResults && searchResults.length === 0 && inviteEmail.trim().length > 0 && (
+                                        <div className="email-search-results">
+                                            <div className="email-search-no-results">
+                                                Kullanıcı bulunamadı
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="form-group">
                                 <select

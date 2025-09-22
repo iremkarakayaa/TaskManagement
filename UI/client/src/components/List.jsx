@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import Card from './Card';
 
@@ -14,6 +14,25 @@ const List = ({
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(list.name);
+    const [showMenu, setShowMenu] = useState(false);
+    const menuRef = useRef(null);
+
+    // Menü dışına tıklandığında kapat
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setShowMenu(false);
+            }
+        };
+
+        if (showMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showMenu]);
 
 
 
@@ -80,13 +99,33 @@ const List = ({
 
                         {/* Liste Aksiyonları */}
                         <div className="list-actions">
-                            <button
-                                className="btn btn-sm btn-danger"
-                                onClick={() => onDeleteList(list.id)}
-                                title="Listeyi Sil"
-                            >
-                                ×
-                            </button>
+                            <div className="list-menu-container" ref={menuRef}>
+                                <button
+                                    className="btn btn-sm btn-menu"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowMenu(!showMenu);
+                                    }}
+                                    title="Liste Seçenekleri"
+                                >
+                                    ⋯
+                                </button>
+                                
+                                {showMenu && (
+                                    <div className="list-menu-dropdown">
+                                        <button
+                                            className="list-menu-item delete-item"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteList(list.id);
+                                                setShowMenu(false);
+                                            }}
+                                        >
+                                            🗑️ Listeyi Sil
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -100,7 +139,7 @@ const List = ({
                                 {...provided.droppableProps}
                                 className={`list-cards ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
                             >
-                                {list.cards && list.cards.length > 0 ? (
+                                {list.cards && list.cards.length > 0 && (
                                     list.cards.map((card, cardIndex) => (
                                         <Card
                                             key={card.id}
@@ -111,16 +150,6 @@ const List = ({
                                             onClick={onCardClick}
                                         />
                                     ))
-                                ) : (
-                                    <div className="empty-list-message">
-                                        <p>Henüz kart yok</p>
-                                        <button
-                                            className="btn btn-sm btn-outline"
-                                            onClick={() => onAddCard(list.id)}
-                                        >
-                                            + Kart Ekle
-                                        </button>
-                                    </div>
                                 )}
                                 {provided.placeholder}
                             </div>

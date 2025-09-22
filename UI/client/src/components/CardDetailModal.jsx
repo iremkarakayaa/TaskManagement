@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { updateCard } from '../services/cardService';
+import { updateCard, assignCardToUser, unassignCard } from '../services/cardService';
 
 const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -10,6 +10,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
         priority: card.priority || 'medium',
         status: card.status || 'pending',
         labels: card.labels || [],
+        assignedUserId: card.assignedUserId || null,
         // DÜZELTME: checklist'i her zaman diziye çevir
         checklist: Array.isArray(card.checklist) ? card.checklist : []
     });
@@ -26,6 +27,7 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
             priority: card.priority || 'medium',
             status: card.status || 'pending',
             labels: card.labels || [],
+            assignedUserId: card.assignedUserId || null,
             // DÜZELTME: checklist'i her zaman diziye çevir
             checklist: Array.isArray(card.checklist) ? card.checklist : []
         });
@@ -34,19 +36,62 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
 
     const fetchAvailableUsers = async () => {
         try {
-            const response = await fetch('http://localhost:5035/api/users');
-            if (response.ok) {
-                const users = await response.json();
-                setAvailableUsers(users);
+            // Önce kartın hangi board'da olduğunu bul
+            const cardResponse = await fetch(`http://localhost:5035/api/cards/${card.id}`);
+            if (cardResponse.ok) {
+                const cardData = await cardResponse.json();
+                console.log('Card data:', cardData);
+                
+                // Board üyelerini çek
+                const membersResponse = await fetch(`http://localhost:5035/api/boards/${cardData.list?.boardId}/members`);
+                if (membersResponse.ok) {
+                    const members = await membersResponse.json();
+                    console.log('Board members:', members);
+                    const users = members.map(member => member.user);
+                    setAvailableUsers(users);
+                } else {
+                    console.error('Failed to fetch board members:', membersResponse.status);
+                }
+            } else {
+                console.error('Failed to fetch card data:', cardResponse.status);
             }
         } catch (err) {
             console.error('Error fetching users:', err);
+            // Fallback: tüm kullanıcıları çek
+            try {
+                const response = await fetch('http://localhost:5035/api/users');
+                if (response.ok) {
+                    const users = await response.json();
+                    setAvailableUsers(users);
+                }
+            } catch (fallbackErr) {
+                console.error('Error fetching all users:', fallbackErr);
+            }
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            console.log('Form submit - card.assignedUserId:', card.assignedUserId, 'formData.assignedUserId:', formData.assignedUserId);
+            
+            // Atama değişikliği varsa önce atama işlemini yap
+            if (card.assignedUserId !== formData.assignedUserId) {
+                console.log('Assignment changed, processing...');
+                if (formData.assignedUserId) {
+                    // Yeni atama
+                    console.log('Assigning to user:', formData.assignedUserId);
+                    await assignCardToUser(card.id, formData.assignedUserId, 1); // Şimdilik sabit kullanıcı ID
+                } else if (card.assignedUserId) {
+                    // Atama kaldırma
+                    console.log('Unassigning card');
+                    await unassignCard(card.id, 1); // Şimdilik sabit kullanıcı ID
+                }
+            } else {
+                console.log('No assignment change');
+            }
+
+            // Sonra kartın diğer bilgilerini güncelle (assignedUserId hariç çünkü atama işlemi bunu halleder)
             const updatedCard = await updateCard({
                 ...card,
                 title: formData.title,
@@ -55,8 +100,11 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                 priority: formData.priority,
                 status: formData.status,
                 labels: formData.labels,
-                checklist: formData.checklist
+                checklist: formData.checklist,
+                assignedUserId: formData.assignedUserId // Atama işlemi sonrası UI'ı güncellemek için
             });
+
+            console.log('Updated card:', updatedCard);
             onUpdate(updatedCard);
             setIsEditing(false);
         } catch (err) {
@@ -314,14 +362,14 @@ const CardDetailModal = ({ card, onClose, onUpdate, onDelete }) => {
                                     id="assignedUserId"
                                     name="assignedUserId"
                                     className="form-input"
-                                    value={card.assignedUserId || ''}
+                                    value={formData.assignedUserId || ''}
                                     onChange={(e) => {
                                         const userId = e.target.value ? parseInt(e.target.value) : null;
-                                        // Kartı güncelle
-                                        updateCard({
-                                            ...card,
+                                        console.log('User selected:', userId, 'from value:', e.target.value);
+                                        setFormData(prev => ({
+                                            ...prev,
                                             assignedUserId: userId
-                                        });
+                                        }));
                                     }}
                                 >
                                     <option value="">Atanmamış</option>

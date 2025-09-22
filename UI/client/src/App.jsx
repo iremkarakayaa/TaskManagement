@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
 import Board from './pages/Board';
 import './App.css';
 
@@ -47,6 +48,14 @@ function App() {
                     />
                     <Route path="/login" element={<Login onLogin={handleLogin} />} />
                     <Route path="/register" element={<Register />} />
+                    <Route
+                        path="/home"
+                        element={
+                            isAuthenticated ?
+                                <Home user={user} onLogout={handleLogout} /> :
+                                <Navigate to="/login" />
+                        }
+                    />
                     <Route
                         path="/dashboard"
                         element={

@@ -129,6 +129,17 @@ namespace UI.Controllers
                         c.Status,
                         c.CreatedAt,
                         c.UpdatedAt,
+                        List = new
+                        {
+                            c.List.Id,
+                            c.List.Name,
+                            c.List.BoardId,
+                            Board = new
+                            {
+                                c.List.Board.Id,
+                                c.List.Board.Name
+                            }
+                        },
                         AssignedUser = c.AssignedUser != null ? new
                         {
                             c.AssignedUser.Id,
@@ -312,11 +323,130 @@ namespace UI.Controllers
                 return StatusCode(500, new { message = "Kart taşınırken bir hata oluştu", error = ex.Message });
             }
         }
+
+        // PUT: api/cards/{id}/assign
+        [HttpPut("{id}/assign")]
+        public async Task<IActionResult> AssignCard(int id, [FromBody] AssignCardRequest request)
+        {
+            try
+            {
+                var card = await _context.Cards
+                    .Include(c => c.List)
+                    .ThenInclude(l => l.Board)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (card == null)
+                {
+                    return NotFound(new { message = "Kart bulunamadı" });
+                }
+
+                // Eski atanan kullanıcı varsa bildirim gönder
+                if (card.AssignedUserId.HasValue && card.AssignedUserId.Value != request.userId)
+                {
+                    var oldNotification = new Notification
+                    {
+                        UserId = card.AssignedUserId.Value,
+                        Title = "Kart Ataması Kaldırıldı",
+                        Message = $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {card.List.Board.Name}",
+                        Type = NotificationType.CardAssigned,
+                        BoardId = card.List.BoardId,
+                        CardId = card.Id
+                    };
+                    _context.Notifications.Add(oldNotification);
+                }
+
+                // Kartı yeni kullanıcıya ata
+                card.AssignedUserId = request.userId;
+                card.UpdatedAt = DateTime.UtcNow;
+
+                // Yeni atanan kullanıcıya bildirim gönder
+                var newNotification = new Notification
+                {
+                    UserId = request.userId,
+                    Title = "Karta Atandınız",
+                    Message = $"'{card.Title}' kartına atandınız. Pano: {card.List.Board.Name}",
+                    Type = NotificationType.CardAssigned,
+                    BoardId = card.List.BoardId,
+                    CardId = card.Id
+                };
+                _context.Notifications.Add(newNotification);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Kart başarıyla atandı" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"AssignCard error: {ex.Message}");
+                return StatusCode(500, new { message = "Kart atanırken hata oluştu" });
+            }
+        }
+
+        // PUT: api/cards/{id}/unassign
+        [HttpPut("{id}/unassign")]
+        public async Task<IActionResult> UnassignCard(int id, [FromBody] UnassignCardRequest request)
+        {
+            try
+            {
+                var card = await _context.Cards
+                    .Include(c => c.List)
+                    .ThenInclude(l => l.Board)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (card == null)
+                {
+                    return NotFound(new { message = "Kart bulunamadı" });
+                }
+
+                if (!card.AssignedUserId.HasValue)
+                {
+                    return BadRequest(new { message = "Bu kart zaten atanmamış" });
+                }
+
+                var assignedUserId = card.AssignedUserId.Value;
+
+                // Kart atamasını kaldır
+                card.AssignedUserId = null;
+                card.UpdatedAt = DateTime.UtcNow;
+
+                // Atanan kullanıcıya bildirim gönder
+                var notification = new Notification
+                {
+                    UserId = assignedUserId,
+                    Title = "Kart Ataması Kaldırıldı",
+                    Message = $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {card.List.Board.Name}",
+                    Type = NotificationType.CardAssigned,
+                    BoardId = card.List.BoardId,
+                    CardId = card.Id
+                };
+                _context.Notifications.Add(notification);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Kart ataması başarıyla kaldırıldı" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UnassignCard error: {ex.Message}");
+                return StatusCode(500, new { message = "Kart ataması kaldırılırken hata oluştu" });
+            }
+        }
     }
 
     public class MoveCardRequest
     {
         public int ListId { get; set; }
         public int Order { get; set; }
+    }
+
+    public class AssignCardRequest
+    {
+        public int userId { get; set; }
+        public int assignedByUserId { get; set; }
+    }
+
+    public class UnassignCardRequest
+    {
+        public int unassignedByUserId { get; set; }
     }
 }

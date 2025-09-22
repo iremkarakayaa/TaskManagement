@@ -1,179 +1,196 @@
-﻿import React, { useState, useEffect } from "react";
-import { DragDropContext } from 'react-beautiful-dnd';
-import { Droppable, Draggable } from "react-beautiful-dnd";
-import "../styles/Home.css";
-import axios from "axios";
+﻿import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import ModernHeader from '../components/ModernHeader';
+import Sidebar from '../components/Sidebar';
 
-export default function Home({ user }) {
-    const [lists, setLists] = useState([]);
+const Home = ({ user, onLogout }) => {
+    const [recentBoards, setRecentBoards] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [profileOpen, setProfileOpen] = useState(false);
-    const [newCardTitles, setNewCardTitles] = useState({}); // Her liste için input state
+    const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
-    // Backend API URL
     const API_BASE = "http://localhost:5035/api";
 
-    // Backend'den board + list + card verisini çek
     useEffect(() => {
-        async function fetchData() {
-            try {
-                const response = await axios.get(`${API_BASE}/boards`);
-                // varsayalım ilk board'u gösteriyoruz
-                const board = response.data[0];
-                if (board && board.lists) {
-                    setLists(board.lists.map(list => ({
-                        ...list,
-                        cards: list.cards || []
-                    })));
-                }
-            } catch (err) {
-                console.error("Veri çekilemedi:", err);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchData();
+        fetchRecentBoards();
     }, []);
 
-    // Kart ekleme
-    const handleAddCard = async (listId) => {
-        const title = newCardTitles[listId];
-        if (!title) return;
-
+    const fetchRecentBoards = async () => {
         try {
-            const response = await axios.post(`${API_BASE}/cards`, {
-                listId,
-                title,
-                description: ""
+            setLoading(true);
+            // Kullanıcının sahip olduğu panolar
+            const ownedBoardsResponse = await axios.get(`${API_BASE}/boards/user/${user.id}`);
+            const ownedBoards = ownedBoardsResponse.data;
+            
+            // Kullanıcının üye olduğu panolar
+            const memberBoardsResponse = await axios.get(`${API_BASE}/boardcollaboration/user/${user.id}/boards`);
+            const memberBoards = memberBoardsResponse.data;
+            
+            // Tüm panoları birleştir ve tekrarları kaldır
+            const allBoards = [...ownedBoards];
+            memberBoards.forEach(memberBoard => {
+                if (!allBoards.find(board => board.id === memberBoard.id)) {
+                    allBoards.push(memberBoard);
+                }
             });
-
-            const newCard = response.data;
-            setLists(prev =>
-                prev.map(list =>
-                    list.id === listId
-                        ? { ...list, cards: [...list.cards, newCard] }
-                        : list
-                )
-            );
-            setNewCardTitles(prev => ({ ...prev, [listId]: "" }));
+            
+            // Son 4 panoyu al
+            setRecentBoards(allBoards.slice(0, 4));
+            setError(null);
         } catch (err) {
-            console.error("Kart eklenemedi:", err);
+            setError('Panolar yüklenirken bir hata oluştu.');
+            console.error('Error fetching recent boards:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Drag & Drop
-    const handleDragEnd = async (result) => {
-        const { source, destination } = result;
-        if (!destination) return;
-        if (
-            source.droppableId === destination.droppableId &&
-            source.index === destination.index
-        ) return;
-
-        const sourceList = lists.find(l => l.id === source.droppableId);
-        const destList = lists.find(l => l.id === destination.droppableId);
-        const [movedCard] = sourceList.cards.splice(source.index, 1);
-        destList.cards.splice(destination.index, 0, movedCard);
-
-        setLists([...lists]);
-
-        // Backend'e taşıma bilgisini gönder
-        try {
-            await axios.put(`${API_BASE}/cards/${movedCard.id}/move`, {
-                listId: destList.id,
-                order: destination.index
-            });
-        } catch (err) {
-            console.error("Kart taşınamadı:", err);
-        }
+    const handleBoardClick = (boardId) => {
+        navigate(`/board/${boardId}`);
     };
 
-    if (loading) return <div>Yükleniyor...</div>;
+    if (loading) {
+        return (
+            <div className="modern-app">
+                <ModernHeader user={user} onLogout={onLogout} />
+                <div className="modern-layout">
+                    <Sidebar user={user} />
+                    <main className="modern-main">
+                        <div className="loading-state">
+                            <div className="loading-spinner"></div>
+                            <p>Yükleniyor...</p>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="home-container">
-            {/* Navbar */}
-            <nav className="navbar">
-                <div className="logo">TaskManager</div>
-                <div className="nav-links">
-                    <a href="/">Ana Sayfa</a>
-                    <a href="/login">Login</a>
-                    <a href="/register">Register</a>
-                </div>
-                <div className="profile" onClick={() => setProfileOpen(!profileOpen)}>
-                    <div className="avatar">{user?.username?.slice(0, 2).toUpperCase()}</div>
-                    {profileOpen && (
-                        <div className="profile-dropdown">
-                            <a href="/profile">Profil</a>
-                            <a href="/settings">Ayarlar</a>
-                            <a href="/logout">Çıkış</a>
+        <div className="modern-app">
+            <ModernHeader user={user} onLogout={onLogout} />
+            
+            <div className="modern-layout">
+                <Sidebar user={user} />
+                
+                <main className="modern-main">
+                    <div className="home-page">
+                        <div className="welcome-section">
+                            <h1 className="welcome-title">
+                                Hoş geldin, {user?.username || 'Kullanıcı'}! 👋
+                            </h1>
+                            <p className="welcome-subtitle">
+                                Görevlerinizi organize edin ve takımınızla işbirliği yapın
+                            </p>
                         </div>
-                    )}
-                </div>
-            </nav>
 
-            <h2 className="home-title">Görev Panosu</h2>
+                        {error && <div className="error-message">{error}</div>}
 
-            <DragDropContext onDragEnd={handleDragEnd}>
-                <div className="board-wrapper">
-                    <div className="board">
-                        {lists.map(list => (
-                            <Droppable droppableId={list.id} key={list.id}>
-                                {(provided) => (
-                                    <div
-                                        className="list"
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                    >
-                                        <div className="list-header">
-                                            <span className="list-title">{list.name}</span>
-                                        </div>
-
-                                        {list.cards.map((card, index) => (
-                                            <Draggable
-                                                draggableId={card.id.toString()}
-                                                index={index}
-                                                key={card.id}
+                        <div className="home-sections">
+                            {/* Son Görüntülenenler */}
+                            <div className="home-section">
+                                <div className="section-header">
+                                    <div className="section-icon">🕒</div>
+                                    <h2 className="section-title">Son Görüntülenenler</h2>
+                                </div>
+                                
+                                {recentBoards.length > 0 ? (
+                                    <div className="boards-grid">
+                                        {recentBoards.map((board) => (
+                                            <div 
+                                                key={board.id} 
+                                                className="board-card"
+                                                onClick={() => handleBoardClick(board.id)}
                                             >
-                                                {(provided, snapshot) => (
-                                                    <div
-                                                        className={`card ${snapshot.isDragging ? "dragging" : ""}`}
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        {...provided.dragHandleProps}
-                                                    >
-                                                        <div className="card-title">{card.title}</div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
+                                                <div className="board-card-image">
+                                                    <div className="board-gradient"></div>
+                                                </div>
+                                                <div className="board-card-content">
+                                                    <h3 className="board-title">{board.name}</h3>
+                                                    <p className="board-description">
+                                                        {board.description || 'Açıklama yok'}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         ))}
-                                        {provided.placeholder}
-
-                                        {/* Yeni kart ekleme */}
-                                        <div className="add-card">
-                                            <input
-                                                placeholder="Yeni kart ekle..."
-                                                value={newCardTitles[list.id] || ""}
-                                                onChange={(e) =>
-                                                    setNewCardTitles(prev => ({
-                                                        ...prev,
-                                                        [list.id]: e.target.value
-                                                    }))
-                                                }
-                                            />
-                                            <button onClick={() => handleAddCard(list.id)}>Ekle</button>
-                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="empty-state">
+                                        <div className="empty-icon">📋</div>
+                                        <h3>Henüz pano yok</h3>
+                                        <p>İlk panonuzu oluşturmak için "Panolar" sekmesine gidin</p>
+                                        <button 
+                                            className="btn btn-primary"
+                                            onClick={() => navigate('/dashboard')}
+                                        >
+                                            Panolar'a Git
+                                        </button>
                                     </div>
                                 )}
-                            </Droppable>
-                        ))}
+                            </div>
 
-                        {/* Yeni liste ekleme */}
-                        <div className="add-list">+ Liste Ekle</div>
+                            {/* Hızlı Erişim */}
+                            <div className="home-section">
+                                <div className="section-header">
+                                    <div className="section-icon">⚡</div>
+                                    <h2 className="section-title">Hızlı Erişim</h2>
+                                </div>
+                                
+                                <div className="quick-actions">
+                                    <button 
+                                        className="quick-action-card"
+                                        onClick={() => navigate('/dashboard')}
+                                    >
+                                        <div className="quick-action-icon">📋</div>
+                                        <h3>Panolar</h3>
+                                        <p>Tüm panolarınızı görüntüleyin</p>
+                                    </button>
+                                    
+                                    <button 
+                                        className="quick-action-card"
+                                        onClick={() => {
+                                            // Yeni pano oluşturma modal'ı açılacak
+                                            navigate('/dashboard');
+                                        }}
+                                    >
+                                        <div className="quick-action-icon">➕</div>
+                                        <h3>Yeni Pano</h3>
+                                        <p>Yeni bir çalışma alanı oluşturun</p>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* İstatistikler */}
+                            <div className="home-section">
+                                <div className="section-header">
+                                    <div className="section-icon">📊</div>
+                                    <h2 className="section-title">İstatistikler</h2>
+                                </div>
+                                
+                                <div className="stats-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-number">{recentBoards.length}</div>
+                                        <div className="stat-label">Toplam Pano</div>
+                                    </div>
+                                    
+                                    <div className="stat-card">
+                                        <div className="stat-number">0</div>
+                                        <div className="stat-label">Tamamlanan Görev</div>
+                                    </div>
+                                    
+                                    <div className="stat-card">
+                                        <div className="stat-number">0</div>
+                                        <div className="stat-label">Devam Eden Görev</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </DragDropContext>
+                </main>
+            </div>
         </div>
     );
-}
+};
+
+export default Home;

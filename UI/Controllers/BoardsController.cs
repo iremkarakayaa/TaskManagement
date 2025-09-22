@@ -248,5 +248,37 @@ namespace UI.Controllers
                 return StatusCode(500, new { message = "Pano arşivlenirken bir hata oluştu", error = ex.Message });
             }
         }
+
+        // GET: api/boards/{id}/members
+        [HttpGet("{id}/members")]
+        public async Task<IActionResult> GetBoardMembers(int id)
+        {
+            try
+            {
+                var members = await _context.BoardMembers
+                    .Include(bm => bm.User)
+                    .Where(bm => bm.BoardId == id && bm.IsActive)
+                    .Select(bm => new
+                    {
+                        bm.Id,
+                        bm.Role,
+                        bm.JoinedAt,
+                        User = new
+                        {
+                            bm.User.Id,
+                            bm.User.Username,
+                            bm.User.Email
+                        }
+                    })
+                    .ToListAsync();
+
+                return Ok(members);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching board members: {ex.Message}");
+                return StatusCode(500, new { message = "Pano üyeleri alınırken hata oluştu" });
+            }
+        }
     }
 }

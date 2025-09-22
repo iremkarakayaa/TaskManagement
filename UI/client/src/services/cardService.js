@@ -79,3 +79,30 @@ export async function moveCard(cardId, newListId) {
         throw error;
     }
 }
+
+// Card'ı kullanıcıya ata
+export async function assignCardToUser(cardId, userId, assignedByUserId) {
+    try {
+        const response = await axios.put(`${API_URL}/${cardId}/assign`, { 
+            userId, 
+            assignedByUserId 
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error assigning card:", error);
+        throw error;
+    }
+}
+
+// Card atamasını kaldır
+export async function unassignCard(cardId, unassignedByUserId) {
+    try {
+        const response = await axios.put(`${API_URL}/${cardId}/unassign`, { 
+            unassignedByUserId 
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error unassigning card:", error);
+        throw error;
+    }
+}

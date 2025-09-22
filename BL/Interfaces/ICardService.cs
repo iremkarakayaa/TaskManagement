@@ -11,5 +11,7 @@ namespace BL.Interfaces
         Task<IEnumerable<CardResponseDto>> GetCardsByListIdAsync(int listId);
         Task<bool> UpdateCardAsync(int id, CardUpdateDto dto);
         Task<bool> DeleteCardAsync(int id);
+        Task<bool> AssignCardToUserAsync(int cardId, int userId, int assignedByUserId);
+        Task<bool> UnassignCardAsync(int cardId, int unassignedByUserId);
     }
 }

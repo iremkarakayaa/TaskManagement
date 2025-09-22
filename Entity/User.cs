@@ -32,6 +32,7 @@ namespace Entity
         public ICollection<ChecklistItem> AssignedChecklistItems { get; set; } = new List<ChecklistItem>();
         public ICollection<BoardInvitation> ReceivedInvitations { get; set; } = new List<BoardInvitation>();
         public ICollection<BoardInvitation> SentInvitations { get; set; } = new List<BoardInvitation>();
+        public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
     }
 }

@@ -27,9 +27,11 @@ namespace UI
             builder.Services.AddScoped<IBoardService, BoardService>();
             builder.Services.AddScoped<IListService, ListService>();
             builder.Services.AddScoped<ICardService, CardService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<IListRepository, ListRepository>();
             builder.Services.AddScoped<IBoardRepository, BoardRepository>();
             builder.Services.AddScoped<ICardRepository, CardRepository>();
+            builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
             // Swagger servisleri
             builder.Services.AddEndpointsApiExplorer();

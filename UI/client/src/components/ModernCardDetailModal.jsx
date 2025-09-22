@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { assignCardToUser, unassignCard } from '../services/cardService';
 
 const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) => {
-    const [isEditing, setIsEditing] = useState(card.isNew || false);
+    const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         title: card.title || '',
         description: card.description || '',
@@ -17,6 +18,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
     const [checklistItems, setChecklistItems] = useState([]);
     const [availableUsers, setAvailableUsers] = useState([]);
     const [comments, setComments] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const API_BASE = "http://localhost:5035/api";
 
@@ -31,12 +33,13 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
             assignedUserId: card.assignedUserId || null
         });
         
-        if (!card.isNew) {
+        // Her durumda board members'ı yükle
+        fetchBoardMembers();
+        
+        // Sadece mevcut kartlar için checklist ve comments yükle
+        if (card.id) {
             fetchChecklistItems();
             fetchComments();
-            fetchBoardMembers();
-        } else {
-            fetchBoardMembers(); // Yeni kart için sadece board members
         }
     }, [card]);
 
@@ -78,36 +81,49 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
 
     const handleSave = async () => {
         if (!formData.title || formData.title.trim().length === 0) {
+            alert('Lütfen kart başlığını girin!');
             return;
         }
-        if (card.isNew) {
-            // Yeni kart oluştur
-            const cardData = {
-                title: formData.title.trim(),
-                description: formData.description || '',
-                dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
-                priority: formData.priority,
-                status: formData.status,
-                labels: formData.labels,
-                assignedUserId: formData.assignedUserId || null,
-                checklist: []
-            };
-            onUpdate(cardData);
-        } else {
-            // Mevcut kartı güncelle - sadece API'nin beklediği alanlar
-            const updatePayload = {
-                id: card.id,
-                listId: card.listId,
-                title: formData.title.trim(),
-                description: formData.description || '',
-                dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
-                priority: formData.priority,
-                status: formData.status,
-                labels: formData.labels,
-                assignedUserId: formData.assignedUserId || null
-            };
-            onUpdate(updatePayload);
-            setIsEditing(false);
+        
+        setIsSaving(true);
+        
+        try {
+            if (!card.id) {
+                // Yeni kart oluştur
+                const cardData = {
+                    title: formData.title.trim(),
+                    description: formData.description || '',
+                    dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
+                    priority: formData.priority,
+                    status: formData.status,
+                    labels: formData.labels,
+                    assignedUserId: formData.assignedUserId || null,
+                    checklist: []
+                };
+                console.log('Yeni kart oluşturuluyor:', cardData);
+                onUpdate(cardData);
+            } else {
+                // Mevcut kartı güncelle - API'nin beklediği format
+                const updatePayload = {
+                    id: card.id,
+                    title: formData.title.trim(),
+                    description: formData.description || '',
+                    dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
+                    priority: formData.priority,
+                    status: formData.status,
+                    labels: JSON.stringify(formData.labels || []),
+                    checklist: JSON.stringify(card.checklist || []),
+                    isCompleted: card.isCompleted || false,
+                    assignedUserId: formData.assignedUserId || null
+                };
+                onUpdate(updatePayload);
+                setIsEditing(false);
+            }
+        } catch (error) {
+            console.error('Kart kaydedilirken hata:', error);
+            alert('Kart kaydedilirken bir hata oluştu!');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -171,16 +187,31 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
 
     const handleUpdateAssignment = async (userId) => {
         try {
-            const updatePayload = card.isNew ? null : {
+            console.log('Assignment change - old:', card.assignedUserId, 'new:', userId);
+            
+            // Atama değişikliği varsa önce atama API'sini çağır
+            if (card.assignedUserId !== userId && card.id) {
+                if (userId) {
+                    // Yeni atama
+                    console.log('Assigning to user:', userId);
+                    await assignCardToUser(card.id, userId, 1); // Şimdilik sabit kullanıcı ID
+                } else if (card.assignedUserId) {
+                    // Atama kaldırma
+                    console.log('Unassigning card');
+                    await unassignCard(card.id, 1); // Şimdilik sabit kullanıcı ID
+                }
+            }
+
+            // Sonra kartı güncelle
+            const updatePayload = !card.id ? null : {
                 id: card.id,
-                listId: card.listId,
                 title: (formData.title ?? card.title ?? '').toString().trim(),
                 description: formData.description ?? card.description ?? '',
                 dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : (card.dueDate || null),
                 priority: formData.priority || card.priority || 'medium',
                 status: formData.status || card.status || 'pending',
-                labels: (formData.labels && formData.labels.length ? formData.labels : (card.labels || [])),
-                checklist: Array.isArray(card.checklist) ? card.checklist : [],
+                labels: JSON.stringify(formData.labels && formData.labels.length ? formData.labels : (card.labels || [])),
+                checklist: JSON.stringify(Array.isArray(card.checklist) ? card.checklist : []),
                 isCompleted: card.isCompleted ?? false,
                 assignedUserId: userId
             };
@@ -195,6 +226,12 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
 
     const completedCount = checklistItems.filter(item => item.isCompleted).length;
     const progressPercentage = checklistItems.length > 0 ? (completedCount / checklistItems.length) * 100 : 0;
+
+    // Debug logging
+    console.log('ModernCardDetailModal - card.id:', card.id);
+    console.log('ModernCardDetailModal - card:', card);
+    console.log('ModernCardDetailModal - isEditing:', isEditing);
+    console.log('ModernCardDetailModal - availableUsers:', availableUsers);
 
     return (
         <div className="modal-overlay modern-card-overlay" onClick={onClose}>
@@ -212,41 +249,6 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                         ) : (
                             <h2 className="modern-card-title">{card.title}</h2>
                         )}
-                        <div className="card-actions">
-                            {!card.isNew && !isEditing && (
-                                <>
-                                    <button className="btn btn-sm btn-secondary" onClick={() => setIsEditing(true)}>
-                                        ✏️ Düzenle
-                                    </button>
-                                    <button className="btn btn-sm btn-danger" onClick={() => onDelete(card.id)}>
-                                        🗑️ Sil
-                                    </button>
-                                </>
-                            )}
-                            {!card.isNew && isEditing && (
-                                <>
-                                    <button className="btn btn-sm btn-primary" onClick={handleSave}>
-                                        💾 Kaydet
-                                    </button>
-                                    <button className="btn btn-sm" onClick={() => { setIsEditing(false); setFormData({
-                                        title: card.title || '',
-                                        description: card.description || '',
-                                        dueDate: card.dueDate ? card.dueDate.slice(0, 16) : '',
-                                        priority: card.priority || 'medium',
-                                        status: card.status || 'pending',
-                                        labels: card.labels || [],
-                                        assignedUserId: card.assignedUserId || null
-                                    }); }}>
-                                        İptal
-                                    </button>
-                                </>
-                            )}
-                            {card.isNew && (
-                                <button className="btn btn-sm btn-primary" onClick={handleSave}>
-                                    💾 Kaydet
-                                </button>
-                            )}
-                        </div>
                     </div>
                 </div>
 
@@ -394,6 +396,75 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Action Buttons - Bottom of Modal */}
+                {console.log('Rendering modal footer - card.id:', card.id, 'isEditing:', isEditing)}
+                <div className="modal-footer">
+                    {!card.id ? (
+                        <button 
+                            type="button"
+                            className="btn btn-primary btn-large" 
+                            onClick={handleSave}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? '⏳ Kart Ekleniyor...' : '➕ Kartı Ekle'}
+                        </button>
+                    ) : (
+                        <div className="card-actions">
+                            {!isEditing ? (
+                                <>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-primary" 
+                                        onClick={() => setIsEditing(true)}
+                                    >
+                                        ✏️ Düzenle
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-danger" 
+                                        onClick={() => {
+                                            if (window.confirm('Bu kartı silmek istediğinizden emin misiniz?')) {
+                                                onDelete(card.id);
+                                            }
+                                        }}
+                                    >
+                                        🗑️ Sil
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-success" 
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                    >
+                                        {isSaving ? '⏳ Kaydediliyor...' : '💾 Kaydet'}
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-secondary" 
+                                        onClick={() => {
+                                            setIsEditing(false);
+                                            setFormData({
+                                                title: card.title || '',
+                                                description: card.description || '',
+                                                dueDate: card.dueDate ? card.dueDate.slice(0, 16) : '',
+                                                priority: card.priority || 'medium',
+                                                status: card.status || 'pending',
+                                                labels: card.labels || [],
+                                                assignedUserId: card.assignedUserId || null
+                                            });
+                                        }}
+                                    >
+                                        ❌ İptal
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

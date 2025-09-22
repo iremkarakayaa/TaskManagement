@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import axios from 'axios';
-import Header from '../components/Header';
+import ModernHeader from '../components/ModernHeader';
 import List from '../components/List';
 import CreateListModal from '../components/CreateListModal';
 import CreateCardModal from '../components/CreateCardModal';
@@ -24,12 +24,15 @@ const Board = ({ user, onLogout }) => {
     const [selectedListForCard, setSelectedListForCard] = useState(null);
     const [newlyCreatedCard, setNewlyCreatedCard] = useState(null);
     const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+    const [userBoards, setUserBoards] = useState([]);
+    const [showBoardSwitcher, setShowBoardSwitcher] = useState(false);
 
     const API_BASE = "http://localhost:5035/api";
 
     useEffect(() => {
         fetchBoardData();
-    }, [boardId]);
+        fetchUserBoards();
+    }, [boardId, user?.id]);
 
     // Board ve listeleri getir
     const fetchBoardData = async () => {
@@ -53,6 +56,28 @@ const Board = ({ user, onLogout }) => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Kullanıcının panolarını getir
+    const fetchUserBoards = async () => {
+        if (!user?.id) return;
+        
+        try {
+            const [ownedBoards, memberBoards] = await Promise.all([
+                axios.get(`${API_BASE}/boards/user/${user.id}`).then(res => res.data),
+                axios.get(`${API_BASE}/boardcollaboration/user/${user.id}/boards`).then(res => res.data)
+            ]);
+
+            // Panoları birleştir ve tekrarları kaldır
+            const allBoards = [...ownedBoards, ...memberBoards];
+            const uniqueBoards = allBoards.filter((board, index, self) => 
+                index === self.findIndex(b => b.id === board.id)
+            );
+            
+            setUserBoards(uniqueBoards);
+        } catch (err) {
+            console.error('Kullanıcı panoları yüklenirken hata:', err);
         }
     };
 
@@ -108,10 +133,12 @@ const Board = ({ user, onLogout }) => {
                     : list
             ));
             
-            // Yeni oluşturulan kartı modern arayüzde aç
-            console.log('Board - Card created, setting newlyCreatedCard:', response.data);
-            setNewlyCreatedCard(response.data);
+            // Close the create card modal
+            setShowCreateCardModal(false);
+            setSelectedListForCard(null);
             setError(null); // Önceki hatayı temizle
+            
+            console.log('Card created successfully and modal closed');
         } catch (err) {
             console.error('Error creating card:', err);
             console.error('Error response:', err.response);
@@ -123,7 +150,23 @@ const Board = ({ user, onLogout }) => {
     // Kart güncelle
     const handleEditCard = async (card) => {
         try {
-            const response = await axios.put(`${API_BASE}/cards/${card.id}`, card);
+            console.log('handleEditCard çağrıldı:', card);
+            
+            // Explicitly construct the payload to avoid model binding conflicts
+            const payload = {
+                id: card.id,
+                title: card.title,
+                description: card.description || '',
+                dueDate: card.dueDate,
+                IsCompleted: card.IsCompleted !== undefined ? card.IsCompleted : card.isCompleted,
+                listId: card.listId,
+                checklist: card.checklist || '[]',
+                assignedUserId: card.assignedUserId || null
+            };
+            
+            console.log('Gönderilen payload:', JSON.stringify(payload, null, 2));
+            const response = await axios.put(`${API_BASE}/cards/${card.id}`, payload);
+            console.log('API response:', response.data);
             const updatedCard = response.data;
 
             setLists(lists.map(list =>
@@ -131,9 +174,15 @@ const Board = ({ user, onLogout }) => {
                     ? { ...list, cards: (list.cards || []).map(c => c.id === updatedCard.id ? updatedCard : c) }
                     : list
             ));
+            console.log('Kart başarıyla güncellendi');
         } catch (err) {
-            setError('Kart güncellenirken bir hata oluştu.');
-            console.error(err);
+            console.error('Kart güncellenirken bir hata oluştu:', err);
+            console.error('Error response:', err.response?.data);
+            console.log('Error response data:', JSON.stringify(err.response?.data, null, 2));
+            console.error('Error status:', err.response?.status);
+            console.error('Error message:', err.message);
+            console.error('Full error:', JSON.stringify(err, null, 2));
+            // Error state'i set etmiyoruz, sadece console'a yazdırıyoruz
         }
     };
 
@@ -247,27 +296,38 @@ const Board = ({ user, onLogout }) => {
         }
     };
 
-    if (loading) return <div className="app"><Header user={user} onLogout={onLogout} /><div className="loading">Pano yükleniyor...</div></div>;
-    if (error) return <div className="app"><Header user={user} onLogout={onLogout} /><div className="error">{error}</div></div>;
+    if (loading) return <div className="app"><ModernHeader user={user} onLogout={onLogout} /><div className="loading">Pano yükleniyor...</div></div>;
+    if (error) return <div className="app"><ModernHeader user={user} onLogout={onLogout} /><div className="error">{error}</div></div>;
 
     return (
         <div className="app">
-            <Header user={user} onLogout={onLogout} />
+            <ModernHeader user={user} onLogout={onLogout} />
 
             <div className="board-page">
-                <div className="board-header-bar board-header-minimal">
-                    <h1 className="board-title-only">{board?.name}</h1>
-                    <div className="board-actions">
-                        <button 
-                            className="btn btn-secondary"
-                            onClick={() => setShowCollaborationModal(true)}
-                        >
-                            👥 İşbirliği
-                        </button>
+                {/* İkinci Header - Pano İsmi ve İşbirliği */}
+                <div className="board-sub-header">
+                    <div className="board-sub-header-content">
+                        <div className="board-title-section">
+                            <h1 className="board-name">{board?.name}</h1>
+                        </div>
+                        <div className="board-actions-section">
+                            <button 
+                                className="btn btn-collaboration"
+                                onClick={() => setShowCollaborationModal(true)}
+                            >
+                                <svg className="collaboration-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                                İşbirliği
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <div className="container">
+                <div className="board-container">
                     {board?.description && (
                         <div className="board-description">
                             <p>{board.description}</p>
@@ -305,6 +365,32 @@ const Board = ({ user, onLogout }) => {
                             )}
                         </Droppable>
                     </DragDropContext>
+                </div>
+
+                {/* Panoları Değiştir Butonu */}
+                <div className="board-switcher">
+                    <button 
+                        className="btn btn-board-switcher"
+                        onClick={() => setShowBoardSwitcher(!showBoardSwitcher)}
+                    >
+                        📋 Panoları Değiştir
+                    </button>
+                    
+                    {showBoardSwitcher && (
+                        <div className="board-switcher-dropdown">
+                            {userBoards.map(boardItem => (
+                                <button
+                                    key={boardItem.id}
+                                    className={`board-switcher-item ${boardItem.id === parseInt(boardId) ? 'active' : ''}`}
+                                    onClick={() => {
+                                        window.location.href = `/board/${boardItem.id}`;
+                                    }}
+                                >
+                                    {boardItem.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import InvitationNotifications from './InvitationNotifications';
+import NotificationCenter from './NotificationCenter';
+import { getUnreadNotificationCount } from '../services/notificationService';
 
 const Header = ({ user, onLogout }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const handleLogout = () => {
         onLogout();
@@ -14,6 +18,25 @@ const Header = ({ user, onLogout }) => {
 
     const isActive = (path) => {
         return location.pathname === path;
+    };
+
+    // Bildirim sayısını yükle
+    useEffect(() => {
+        if (user?.id) {
+            loadUnreadCount();
+            // Her 30 saniyede bir bildirim sayısını güncelle
+            const interval = setInterval(loadUnreadCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user?.id]);
+
+    const loadUnreadCount = async () => {
+        try {
+            const count = await getUnreadNotificationCount(user.id);
+            setUnreadCount(count);
+        } catch (error) {
+            console.error('Error loading unread count:', error);
+        }
     };
 
     return (

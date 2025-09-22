@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Header from '../components/Header';
+import ModernHeader from '../components/ModernHeader';
+import Sidebar from '../components/Sidebar';
 import CreateBoardModal from '../components/CreateBoardModal';
 
 const Dashboard = ({ user, onLogout }) => {
@@ -95,51 +96,101 @@ const Dashboard = ({ user, onLogout }) => {
 
     if (loading) {
         return (
-            <div className="app">
-                <Header user={user} onLogout={onLogout} />
-                <div className="loading">Panolar yükleniyor...</div>
+            <div className="modern-app">
+                <ModernHeader user={user} onLogout={onLogout} />
+                <div className="modern-layout">
+                    <Sidebar user={user} />
+                    <main className="modern-main">
+                        <div className="loading-state">
+                            <div className="loading-spinner"></div>
+                            <p>Panolar yükleniyor...</p>
+                        </div>
+                    </main>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="app">
-            <Header user={user} onLogout={onLogout} />
-
-            <div className="dashboard">
-                <div className="container">
-                    <div className="dashboard-header">
-                        <h1 className="dashboard-title">Hoş geldin, {user?.username || 'Kullanıcı'}!</h1>
-                        <p className="dashboard-subtitle">Görevlerini organize et ve takımınla işbirliği yap</p>
-                    </div>
-
-                    {error && <div className="error">{error}</div>}
-
-                    <div className="boards-grid">
-                        {boards.map((board) => (
-                            <div
-                                key={board.id}
-                                className="board-card"
-                                onClick={() => handleBoardClick(board.id)}
-                            >
-                                <h3>{board.name}</h3>
-                                {board.createdAt && (
-                                    <p>Oluşturulma: {new Date(board.createdAt).toLocaleDateString('tr-TR')}</p>
-                                )}
-                                {board.description && <p>{board.description}</p>}
+        <div className="modern-app">
+            <ModernHeader user={user} onLogout={onLogout} />
+            
+            <div className="modern-layout">
+                <Sidebar user={user} />
+                
+                <main className="modern-main">
+                    <div className="boards-page">
+                        <div className="page-header">
+                            <div className="page-title-section">
+                                <h1 className="page-title">Panolar</h1>
+                                <p className="page-subtitle">Çalışma alanlarınızı organize edin</p>
                             </div>
-                        ))}
+                            <button 
+                                className="btn btn-primary btn-create"
+                                onClick={() => setShowCreateModal(true)}
+                            >
+                                <span className="btn-icon">+</span>
+                                Yeni Pano
+                            </button>
+                        </div>
 
-                        <div
-                            className="board-card create-board-card"
-                            onClick={() => setShowCreateModal(true)}
-                        >
-                            <div className="create-board-icon">+</div>
-                            <h3>Yeni Pano Oluştur</h3>
-                            <p>Yeni bir proje veya görev grubu başlat</p>
+                        {error && <div className="error-message">{error}</div>}
+
+                        <div className="boards-section">
+                            <div className="section-header">
+                                <h2 className="section-title">Son Görüntülenenler</h2>
+                            </div>
+                            
+                            <div className="boards-grid">
+                                {boards.map((board) => (
+                                    <div 
+                                        key={board.id} 
+                                        className="board-card"
+                                        onClick={() => handleBoardClick(board.id)}
+                                    >
+                                        <div className="board-card-image">
+                                            <div className="board-gradient"></div>
+                                        </div>
+                                        <div className="board-card-content">
+                                            <h3 className="board-title">{board.name}</h3>
+                                            <p className="board-description">
+                                                {board.description || 'Açıklama yok'}
+                                            </p>
+                                            <div className="board-meta">
+                                                <span className="board-stats">
+                                                    📋 {board.lists?.length || 0} liste
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="board-card-actions">
+                                            <button 
+                                                className="board-action-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Board actions
+                                                }}
+                                            >
+                                                ⋮
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                
+                                {/* Yeni Pano Kartı */}
+                                <div 
+                                    className="board-card board-card-new"
+                                    onClick={() => setShowCreateModal(true)}
+                                >
+                                    <div className="board-card-content">
+                                        <div className="new-board-icon">+</div>
+                                        <h3 className="board-title">Yeni pano oluştur</h3>
+                                        <p className="board-description">Yeni bir çalışma alanı başlatın</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </main>
             </div>
 
             {showCreateModal && (

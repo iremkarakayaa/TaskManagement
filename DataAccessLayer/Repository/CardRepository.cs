@@ -51,5 +51,14 @@ namespace DataAccessLayer.Repository
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<BoardList> GetListByCardIdAsync(int cardId)
+        {
+            var card = await _context.Cards
+                .Include(c => c.List)
+                .FirstOrDefaultAsync(c => c.Id == cardId);
+            
+            return card?.List;
+        }
     }
 }

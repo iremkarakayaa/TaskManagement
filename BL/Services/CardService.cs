@@ -10,10 +10,14 @@ namespace BL.Services
     public class CardService : ICardService
     {
         private readonly ICardRepository _cardRepository;
+        private readonly INotificationService _notificationService;
+        private readonly IBoardRepository _boardRepository;
 
-        public CardService(ICardRepository cardRepository)
+        public CardService(ICardRepository cardRepository, INotificationService notificationService, IBoardRepository boardRepository)
         {
             _cardRepository = cardRepository;
+            _notificationService = notificationService;
+            _boardRepository = boardRepository;
         }
 
         public async Task<CardResponseDto> CreateCardAsync(CardCreateDto dto)
@@ -98,6 +102,79 @@ namespace BL.Services
         public async Task<bool> DeleteCardAsync(int id)
         {
             return await _cardRepository.DeleteAsync(id);
+        }
+
+        public async Task<bool> AssignCardToUserAsync(int cardId, int userId, int assignedByUserId)
+        {
+            var card = await _cardRepository.GetByIdAsync(cardId);
+            if (card == null) return false;
+
+            // Kartın listesini al ve board bilgisini bul
+            var list = await _cardRepository.GetListByCardIdAsync(cardId);
+            if (list == null) return false;
+
+            var board = await _boardRepository.GetByIdAsync(list.BoardId);
+            if (board == null) return false;
+
+            // Eski atanan kullanıcı varsa bildirim gönder
+            if (card.AssignedUserId.HasValue && card.AssignedUserId.Value != userId)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    card.AssignedUserId.Value,
+                    "Kart Ataması Kaldırıldı",
+                    $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
+                    NotificationType.CardAssigned,
+                    board.Id,
+                    card.Id
+                );
+            }
+
+            // Kartı yeni kullanıcıya ata
+            card.AssignedUserId = userId;
+            await _cardRepository.UpdateAsync(card);
+
+            // Yeni atanan kullanıcıya bildirim gönder
+            await _notificationService.CreateNotificationAsync(
+                userId,
+                "Karta Atandınız",
+                $"'{card.Title}' kartına atandınız. Pano: {board.Name}",
+                NotificationType.CardAssigned,
+                board.Id,
+                card.Id
+            );
+
+            return true;
+        }
+
+        public async Task<bool> UnassignCardAsync(int cardId, int unassignedByUserId)
+        {
+            var card = await _cardRepository.GetByIdAsync(cardId);
+            if (card == null || !card.AssignedUserId.HasValue) return false;
+
+            // Kartın listesini al ve board bilgisini bul
+            var list = await _cardRepository.GetListByCardIdAsync(cardId);
+            if (list == null) return false;
+
+            var board = await _boardRepository.GetByIdAsync(list.BoardId);
+            if (board == null) return false;
+
+            var assignedUserId = card.AssignedUserId.Value;
+
+            // Kart atamasını kaldır
+            card.AssignedUserId = null;
+            await _cardRepository.UpdateAsync(card);
+
+            // Atanan kullanıcıya bildirim gönder
+            await _notificationService.CreateNotificationAsync(
+                assignedUserId,
+                "Kart Ataması Kaldırıldı",
+                $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
+                NotificationType.CardAssigned,
+                board.Id,
+                card.Id
+            );
+
+            return true;
         }
     }
 }

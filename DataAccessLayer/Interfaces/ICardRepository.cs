@@ -11,5 +11,6 @@ namespace DataAccessLayer.Interfaces
         Task<IEnumerable<Card>> GetByListIdAsync(int listId);
         Task UpdateAsync(Card card);
         Task<bool> DeleteAsync(int id);
+        Task<BoardList> GetListByCardIdAsync(int cardId);
     }
 }

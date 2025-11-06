@@ -168,10 +168,17 @@ const Board = ({ user, onLogout }) => {
             const response = await axios.put(`${API_BASE}/cards/${card.id}`, payload);
             console.log('API response:', response.data);
             const updatedCard = response.data;
+            
+            // Backend'den gelen IsCompleted'i normalize et (hem IsCompleted hem isCompleted olabilir)
+            const normalizedCard = {
+                ...updatedCard,
+                IsCompleted: updatedCard.IsCompleted !== undefined ? updatedCard.IsCompleted : updatedCard.isCompleted,
+                isCompleted: updatedCard.IsCompleted !== undefined ? updatedCard.IsCompleted : updatedCard.isCompleted
+            };
 
             setLists(lists.map(list =>
-                list.id === updatedCard.listId
-                    ? { ...list, cards: (list.cards || []).map(c => c.id === updatedCard.id ? updatedCard : c) }
+                list.id === normalizedCard.listId
+                    ? { ...list, cards: (list.cards || []).map(c => c.id === normalizedCard.id ? normalizedCard : c) }
                     : list
             ));
             console.log('Kart başarıyla güncellendi');

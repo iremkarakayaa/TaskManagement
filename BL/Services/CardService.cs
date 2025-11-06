@@ -10,10 +10,10 @@ namespace BL.Services
     public class CardService : ICardService
     {
         private readonly ICardRepository _cardRepository;
-        private readonly INotificationService _notificationService;
+        private readonly INotificationService? _notificationService;
         private readonly IBoardRepository _boardRepository;
 
-        public CardService(ICardRepository cardRepository, INotificationService notificationService, IBoardRepository boardRepository)
+        public CardService(ICardRepository cardRepository, IBoardRepository boardRepository, INotificationService? notificationService = null)
         {
             _cardRepository = cardRepository;
             _notificationService = notificationService;
@@ -117,7 +117,7 @@ namespace BL.Services
             if (board == null) return false;
 
             // Eski atanan kullanıcı varsa bildirim gönder
-            if (card.AssignedUserId.HasValue && card.AssignedUserId.Value != userId)
+            if (_notificationService != null && card.AssignedUserId.HasValue && card.AssignedUserId.Value != userId)
             {
                 await _notificationService.CreateNotificationAsync(
                     card.AssignedUserId.Value,
@@ -134,14 +134,17 @@ namespace BL.Services
             await _cardRepository.UpdateAsync(card);
 
             // Yeni atanan kullanıcıya bildirim gönder
-            await _notificationService.CreateNotificationAsync(
-                userId,
-                "Karta Atandınız",
-                $"'{card.Title}' kartına atandınız. Pano: {board.Name}",
-                NotificationType.CardAssigned,
-                board.Id,
-                card.Id
-            );
+            if (_notificationService != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    userId,
+                    "Karta Atandınız",
+                    $"'{card.Title}' kartına atandınız. Pano: {board.Name}",
+                    NotificationType.CardAssigned,
+                    board.Id,
+                    card.Id
+                );
+            }
 
             return true;
         }
@@ -165,14 +168,17 @@ namespace BL.Services
             await _cardRepository.UpdateAsync(card);
 
             // Atanan kullanıcıya bildirim gönder
-            await _notificationService.CreateNotificationAsync(
-                assignedUserId,
-                "Kart Ataması Kaldırıldı",
-                $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
-                NotificationType.CardAssigned,
-                board.Id,
-                card.Id
-            );
+            if (_notificationService != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    assignedUserId,
+                    "Kart Ataması Kaldırıldı",
+                    $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
+                    NotificationType.CardAssigned,
+                    board.Id,
+                    card.Id
+                );
+            }
 
             return true;
         }

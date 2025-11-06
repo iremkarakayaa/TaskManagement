@@ -32,8 +32,8 @@ const Card = ({ card, index, onEdit, onDelete, onClick }) => {
     // Açıklama var mı kontrol et
     const hasDescription = card.description && card.description.trim().length > 0;
 
-    // Kart tamamlandı mı kontrol et
-    const isCompleted = card.IsCompleted || card.isCompleted || card.status === 'completed';
+    // Kart tamamlandı mı kontrol et - hem IsCompleted hem isCompleted kontrol et
+    const isCompleted = card.IsCompleted === true || card.isCompleted === true || card.status === 'completed';
 
     // Süre geçmişi kontrol et
     const isOverdue = card.dueDate && new Date(card.dueDate) < new Date() && !isCompleted;
@@ -111,21 +111,7 @@ const Card = ({ card, index, onEdit, onDelete, onClick }) => {
                                 </div>
                             )}
 
-                            {/* Öncelik Göstergesi */}
-                            {card.priority && (
-                                <div 
-                                    className="card-priority-indicator"
-                                    style={{ backgroundColor: getPriorityColor(card.priority) }}
-                                ></div>
-                            )}
-
-                            {/* Durum Göstergesi */}
-                            {card.status && (
-                                <div 
-                                    className="card-status-indicator"
-                                    style={{ backgroundColor: getStatusColor(card.status) }}
-                                ></div>
-                            )}
+                            {/* Öncelik/Durum göstergeleri istenmediği için kaldırıldı */}
                         </div>
                     </div>
 

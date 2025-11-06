@@ -198,13 +198,10 @@ namespace UI.Controllers
 
         // PUT: api/cards/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCard(int id, [FromBody] Card card)
+        public async Task<IActionResult> UpdateCard(int id, [FromBody] System.Text.Json.JsonElement jsonElement)
         {
             try
             {
-                if (id != card.Id)
-                    return BadRequest();
-
                 var existingCard = await _context.Cards.FindAsync(id);
                 if (existingCard == null)
                     return NotFound();
@@ -214,24 +211,108 @@ namespace UI.Controllers
                 var oldDescription = existingCard.Description;
                 var oldAssignedUserId = existingCard.AssignedUserId;
 
-                existingCard.Title = card.Title;
-                existingCard.Description = card.Description;
-                existingCard.DueDate = card.DueDate;
-                existingCard.IsCompleted = card.IsCompleted;
-                existingCard.AssignedUserId = card.AssignedUserId;
-                existingCard.Labels = card.Labels;
-                existingCard.Priority = card.Priority;
-                existingCard.Status = card.Status;
-                existingCard.Checklist = card.Checklist;
+                // Manuel JSON parsing - esnek payload desteği
+                if (jsonElement.TryGetProperty("id", out var idElement))
+                {
+                    var requestId = idElement.GetInt32();
+                    if (requestId != id)
+                        return BadRequest(new { message = "ID mismatch" });
+                }
+
+                if (jsonElement.TryGetProperty("title", out var titleElement))
+                {
+                    existingCard.Title = titleElement.GetString() ?? existingCard.Title;
+                }
+
+                if (jsonElement.TryGetProperty("description", out var descElement))
+                {
+                    existingCard.Description = descElement.GetString() ?? existingCard.Description;
+                }
+
+                if (jsonElement.TryGetProperty("dueDate", out var dueDateElement))
+                {
+                    var dueDateString = dueDateElement.GetString();
+                    if (dueDateElement.ValueKind == System.Text.Json.JsonValueKind.Null || string.IsNullOrWhiteSpace(dueDateString))
+                    {
+                        existingCard.DueDate = null;
+                    }
+                    else if (DateTime.TryParse(dueDateString, out var parsedDate))
+                    {
+                        // PostgreSQL timestamptz için UTC gerekli
+                        if (parsedDate.Kind == DateTimeKind.Local)
+                        {
+                            parsedDate = parsedDate.ToUniversalTime();
+                        }
+                        else if (parsedDate.Kind == DateTimeKind.Unspecified)
+                        {
+                            // Z içermeyen string gelirse UTC varsay
+                            parsedDate = DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+                        }
+                        existingCard.DueDate = parsedDate;
+                    }
+                }
+
+                // IsCompleted - hem IsCompleted hem isCompleted desteği
+                if (jsonElement.TryGetProperty("IsCompleted", out var isCompletedElement) || jsonElement.TryGetProperty("isCompleted", out isCompletedElement))
+                {
+                    if (isCompletedElement.ValueKind == System.Text.Json.JsonValueKind.True || isCompletedElement.ValueKind == System.Text.Json.JsonValueKind.False)
+                    {
+                        existingCard.IsCompleted = isCompletedElement.GetBoolean();
+                    }
+                }
+
+                if (jsonElement.TryGetProperty("listId", out var listIdElement))
+                {
+                    existingCard.ListId = listIdElement.GetInt32();
+                }
+
+                if (jsonElement.TryGetProperty("assignedUserId", out var assignedUserIdElement))
+                {
+                    if (assignedUserIdElement.ValueKind == System.Text.Json.JsonValueKind.Null)
+                    {
+                        existingCard.AssignedUserId = null;
+                    }
+                    else if (assignedUserIdElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        existingCard.AssignedUserId = assignedUserIdElement.GetInt32();
+                    }
+                }
+
+                if (jsonElement.TryGetProperty("labels", out var labelsElement))
+                {
+                    existingCard.Labels = labelsElement.ValueKind == System.Text.Json.JsonValueKind.String 
+                        ? labelsElement.GetString() ?? "[]"
+                        : System.Text.Json.JsonSerializer.Serialize(labelsElement);
+                }
+
+                if (jsonElement.TryGetProperty("priority", out var priorityElement))
+                {
+                    existingCard.Priority = priorityElement.GetString() ?? existingCard.Priority;
+                }
+
+                if (jsonElement.TryGetProperty("status", out var statusElement))
+                {
+                    existingCard.Status = statusElement.GetString() ?? existingCard.Status;
+                }
+
+                if (jsonElement.TryGetProperty("checklist", out var checklistElement))
+                {
+                    existingCard.Checklist = checklistElement.ValueKind == System.Text.Json.JsonValueKind.String 
+                        ? checklistElement.GetString() ?? "[]"
+                        : System.Text.Json.JsonSerializer.Serialize(checklistElement);
+                }
+
+                // Güncelleme zamanı UTC
                 existingCard.UpdatedAt = DateTime.UtcNow;
 
                 _context.Entry(existingCard).State = EntityState.Modified;
+
                 await _context.SaveChangesAsync();
 
                 // Geçmiş kaydı ekle
                 var historyEntries = new List<CardHistory>();
 
-                if (oldTitle != card.Title)
+                if (oldTitle != existingCard.Title)
                 {
                     historyEntries.Add(new CardHistory
                     {
@@ -240,17 +321,17 @@ namespace UI.Controllers
                         Action = "updated",
                         Description = "Kart başlığı güncellendi",
                         OldValue = oldTitle,
-                        NewValue = card.Title,
+                        NewValue = existingCard.Title,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
 
-                if (oldAssignedUserId != card.AssignedUserId)
+                if (oldAssignedUserId != existingCard.AssignedUserId)
                 {
                     var oldUser = oldAssignedUserId.HasValue ? 
                         await _context.Users.FindAsync(oldAssignedUserId.Value) : null;
-                    var newUser = card.AssignedUserId.HasValue ? 
-                        await _context.Users.FindAsync(card.AssignedUserId.Value) : null;
+                    var newUser = existingCard.AssignedUserId.HasValue ? 
+                        await _context.Users.FindAsync(existingCard.AssignedUserId.Value) : null;
 
                     historyEntries.Add(new CardHistory
                     {
@@ -270,12 +351,34 @@ namespace UI.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                return Ok(existingCard);
+                // Basit DTO döndür - circular reference önleme
+                return Ok(new
+                {
+                    id = existingCard.Id,
+                    title = existingCard.Title,
+                    description = existingCard.Description,
+                    dueDate = existingCard.DueDate,
+                    isCompleted = existingCard.IsCompleted,
+                    listId = existingCard.ListId,
+                    assignedUserId = existingCard.AssignedUserId,
+                    labels = existingCard.Labels,
+                    priority = existingCard.Priority,
+                    status = existingCard.Status,
+                    checklist = existingCard.Checklist,
+                    createdAt = existingCard.CreatedAt,
+                    updatedAt = existingCard.UpdatedAt
+                });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating card: {ex.Message}");
-                return StatusCode(500, new { message = "Kart güncellenirken bir hata oluştu", error = ex.Message });
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += $" | Inner: {ex.InnerException.Message}";
+                }
+                Console.WriteLine($"Error updating card: {errorMessage}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { message = "Kart güncellenirken bir hata oluştu", error = errorMessage });
             }
         }
 

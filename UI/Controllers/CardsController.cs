@@ -58,6 +58,11 @@ namespace UI.Controllers
                     return BadRequest(new { message = "ListId gerekli" });
                 }
 
+                // Yeni kart için mevcut listedeki en büyük order'ı bul ve sona ekle
+                var maxOrderInList = await _context.Cards
+                    .Where(c => c.ListId == request.listId)
+                    .MaxAsync(c => (int?)c.Order) ?? -1;
+
                 var card = new Card
                 {
                     Title = request.title,
@@ -70,6 +75,7 @@ namespace UI.Controllers
                     Priority = request.priority,
                     Status = request.status,
                     AssignedUserId = request.assignedUserId,
+                    Order = maxOrderInList + 1,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -414,11 +420,76 @@ namespace UI.Controllers
                 if (card == null)
                     return NotFound();
 
+                var oldListId = card.ListId;
+
+                // Aynı liste içi taşıma
+                if (oldListId == request.ListId)
+                {
+                    var listCards = await _context.Cards
+                        .Where(c => c.ListId == oldListId)
+                        .OrderBy(c => c.Order)
+                        .ToListAsync();
+
+                    // Kartı mevcut yerinden çıkar
+                    listCards = listCards.Where(c => c.Id != id).ToList();
+                    // Hedef index'i sınırla
+                    var targetIndex = Math.Max(0, Math.Min(request.Order, listCards.Count));
+                    // Moved kartı hedefe ekle (geçici Order önemsiz)
+                    card.ListId = oldListId;
+                    card.Order = targetIndex;
+                    listCards.Insert(targetIndex, card);
+
+                    // Tüm kartları baştan sırala
+                    for (int i = 0; i < listCards.Count; i++)
+                    {
+                        if (listCards[i].Order != i)
+                        {
+                            listCards[i].Order = i;
+                            _context.Entry(listCards[i]).Property(x => x.Order).IsModified = true;
+                        }
+                    }
+                }
+                else // Farklı listeye taşıma
+                {
+                    // Kaynak listede çıkar ve sıkıştır
+                    var sourceCards = await _context.Cards
+                        .Where(c => c.ListId == oldListId && c.Id != id)
+                        .OrderBy(c => c.Order)
+                        .ToListAsync();
+                    for (int i = 0; i < sourceCards.Count; i++)
+                    {
+                        if (sourceCards[i].Order != i)
+                        {
+                            sourceCards[i].Order = i;
+                            _context.Entry(sourceCards[i]).Property(x => x.Order).IsModified = true;
+                        }
+                    }
+
+                    // Hedef listede yerine ekle ve yeniden sırala
+                    var destCards = await _context.Cards
+                        .Where(c => c.ListId == request.ListId)
+                        .OrderBy(c => c.Order)
+                        .ToListAsync();
+
+                    var targetIndex = Math.Max(0, Math.Min(request.Order, destCards.Count));
                 card.ListId = request.ListId;
-                _context.Entry(card).State = EntityState.Modified;
+                    card.Order = targetIndex;
+                    destCards.Insert(targetIndex, card);
+
+                    for (int i = 0; i < destCards.Count; i++)
+                    {
+                        if (destCards[i].Order != i)
+                        {
+                            destCards[i].Order = i;
+                            _context.Entry(destCards[i]).Property(x => x.Order).IsModified = true;
+                        }
+                    }
+                }
+
+                card.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                return Ok(card);
+                return Ok(new { id = card.Id, listId = card.ListId, order = card.Order });
             }
             catch (Exception ex)
             {

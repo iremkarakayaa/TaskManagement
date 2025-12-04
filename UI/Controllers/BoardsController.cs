@@ -54,13 +54,16 @@ namespace UI.Controllers
                             l.Id,
                             l.Name,
                             l.Order,
-                            Cards = l.Cards.Select(c => new
+                            Cards = l.Cards
+                                .OrderBy(c => c.Order)
+                                .Select(c => new
                             {
                                 c.Id,
                                 c.Title,
                                 c.Description,
                                 c.DueDate,
                                 c.IsCompleted,
+                                c.Order,
                                 c.ListId,
                                 c.Checklist
                             }).ToList()

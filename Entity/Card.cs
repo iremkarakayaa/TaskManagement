@@ -15,6 +15,7 @@ namespace Entity
         public string Status { get; set; } = "pending"; // pending, in-progress, completed
 
         public int ListId { get; set; }
+        public int Order { get; set; } // List içindeki sıra
         public int? AssignedUserId { get; set; } // Opsiyonel atama
         public string Checklist { get; set; } = "[]"; // JSON string olarak saklanacak
         

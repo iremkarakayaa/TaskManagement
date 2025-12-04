@@ -10,6 +10,7 @@ import './App.css';
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
+    const [isBootstrapped, setIsBootstrapped] = useState(false); // refresh sonrası rehydrate tamamlandı mı
 
     // Sayfa yenilemede oturumu koru
     useEffect(() => {
@@ -23,6 +24,9 @@ function App() {
                 }
             }
         } catch {}
+        finally {
+            setIsBootstrapped(true);
+        }
     }, []);
 
     // Login işlemi sonrası çağrılacak
@@ -37,6 +41,11 @@ function App() {
         setUser(null);
         try { localStorage.removeItem('authUser'); } catch {}
     };
+
+    // Bootstrap tamamlanana kadar yönlendirme yapma (ilk yüklemede login'e atlamayı önler)
+    if (!isBootstrapped) {
+        return null;
+    }
 
     return (
         <Router>

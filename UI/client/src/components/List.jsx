@@ -132,7 +132,7 @@ const List = ({
 
 
                     {/* Kartlar */}
-                    <Droppable droppableId={list.id.toString()} type="card" isDropDisabled={false} isCombineEnabled={false}>
+                    <Droppable droppableId={list.id.toString()} type="card" isDropDisabled={false} isCombineEnabled={false} ignoreContainerClipping={true}>
                         {(provided, snapshot) => (
                             <div
                                 ref={provided.innerRef}

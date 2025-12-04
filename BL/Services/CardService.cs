@@ -136,14 +136,14 @@ namespace BL.Services
             // Yeni atanan kullanıcıya bildirim gönder
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
-                    userId,
-                    "Karta Atandınız",
-                    $"'{card.Title}' kartına atandınız. Pano: {board.Name}",
-                    NotificationType.CardAssigned,
-                    board.Id,
-                    card.Id
-                );
+            await _notificationService.CreateNotificationAsync(
+                userId,
+                "Karta Atandınız",
+                $"'{card.Title}' kartına atandınız. Pano: {board.Name}",
+                NotificationType.CardAssigned,
+                board.Id,
+                card.Id
+            );
             }
 
             return true;
@@ -170,14 +170,14 @@ namespace BL.Services
             // Atanan kullanıcıya bildirim gönder
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
-                    assignedUserId,
-                    "Kart Ataması Kaldırıldı",
-                    $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
-                    NotificationType.CardAssigned,
-                    board.Id,
-                    card.Id
-                );
+            await _notificationService.CreateNotificationAsync(
+                assignedUserId,
+                "Kart Ataması Kaldırıldı",
+                $"'{card.Title}' kartından atamanız kaldırıldı. Pano: {board.Name}",
+                NotificationType.CardAssigned,
+                board.Id,
+                card.Id
+            );
             }
 
             return true;

@@ -1,3 +1,19 @@
+/* Global overflow kontrolü: mor arka planda yatay/dikey barı engelle */
+html, body {
+    height: 100%;
+    overflow-x: hidden;   /* Sayfa genelinde yatay scroll kapalı */
+}
+
+/* Board alanında yatay overflow'u gizle, sadece liste şeridi scroll yapsın */
+.board-container {
+    overflow-x: hidden;
+}
+
+/* Yatay kaydırma sadece liste şeridinde olsun */
+.board-lists {
+    overflow-x: auto;
+    overflow-y: visible;
+}
 /* Temel CSS reset ve font ayarları */
 * {
     margin: 0;
@@ -265,12 +281,33 @@ body {
 .list-cards {
     min-height: 100px;
     margin-bottom: 16px;
+    position: relative;
+    overflow: visible; /* Drag edilen kartın görünmesini sağla */
 }
 
 .list-cards.drag-over {
-    background: rgba(102, 126, 234, 0.1);
-    border-radius: 8px;
-    border: 2px dashed #667eea;
+    /* Tüm listeyi kaplayan kesikli çerçeveyi kaldırıyoruz */
+    background: transparent;
+    border: none;
+}
+
+/* react-beautiful-dnd yer tutucu (placeholder) için */
+/* Kaynak listede boşluk kalmaması için placeholder'ı görünmez yap (yükseklik 0) */
+.list-cards:not(.drag-over) [data-rbd-placeholder-context-id] {
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Hedef listede placeholder görünür kalabilir ama diğer kartlar sabit */
+.list-cards.drag-over [data-rbd-placeholder-context-id] {
+    height: 2px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
 }
 
 .card-item {
@@ -282,6 +319,14 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid rgba(0, 0, 0, 0.05);
+    width: 100%;
+    box-sizing: border-box; /* Genişlik taşmasını önle */
+}
+
+/* Diğer kartlar asla hareket etmesin (RBdnd displacement'i bastır) */
+.list-cards.drag-over .modern-card:not(.dragging) {
+    transform: none !important;
+    transition: none !important;
 }
 
 .card-item:hover {
@@ -290,7 +335,7 @@ body {
 }
 
 .card-item.dragging {
-    transform: rotate(5deg);
+    transform: none;                   /* Yana kayma/taşma hissini azalt */
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     z-index: 1000;
 }

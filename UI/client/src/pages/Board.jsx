@@ -168,7 +168,7 @@ const Board = ({ user, onLogout }) => {
             const response = await axios.put(`${API_BASE}/cards/${card.id}`, payload);
             console.log('API response:', response.data);
             const updatedCard = response.data;
-            
+
             // Backend'den gelen IsCompleted'i normalize et (hem IsCompleted hem isCompleted olabilir)
             const normalizedCard = {
                 ...updatedCard,
@@ -210,9 +210,21 @@ const Board = ({ user, onLogout }) => {
 
     // Drag & drop işlemi
     const handleDragEnd = async (result) => {
-        if (!result.destination) return;
+        // Kart geri getirildiğinde (destination null) state'i yeniden yükle
+        if (!result.destination) {
+            fetchBoardData();
+            return;
+        }
 
         const { source, destination, type } = result;
+
+        // Hiçbir değişiklik yoksa erken çık (kaybolma/glitch önler)
+        if (
+            source.droppableId === destination.droppableId &&
+            source.index === destination.index
+        ) {
+            return;
+        }
 
         if (type === 'list') {
             // Liste sıralaması değiştirme

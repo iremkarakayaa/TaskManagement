@@ -17,6 +17,7 @@ namespace UI.Controllers
         public string priority { get; set; } = "medium";
         public string status { get; set; } = "pending";
         public int? assignedUserId { get; set; }
+        public List<int> assignedUserIds { get; set; } = new List<int>();
     }
 
     [ApiController]
@@ -75,6 +76,7 @@ namespace UI.Controllers
                     Priority = request.priority,
                     Status = request.status,
                     AssignedUserId = request.assignedUserId,
+                    AssignedUserIds = request.assignedUserIds != null ? System.Text.Json.JsonSerializer.Serialize(request.assignedUserIds) : "[]",
                     Order = maxOrderInList + 1,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -129,6 +131,7 @@ namespace UI.Controllers
                         c.IsCompleted,
                         c.ListId,
                         c.AssignedUserId,
+                        c.AssignedUserIds,
                         c.Checklist,
                         c.Labels,
                         c.Priority,
@@ -284,6 +287,13 @@ namespace UI.Controllers
                     }
                 }
 
+                if (jsonElement.TryGetProperty("assignedUserIds", out var assignedUserIdsElement))
+                {
+                    existingCard.AssignedUserIds = assignedUserIdsElement.ValueKind == System.Text.Json.JsonValueKind.String 
+                        ? assignedUserIdsElement.GetString() ?? "[]"
+                        : System.Text.Json.JsonSerializer.Serialize(assignedUserIdsElement);
+                }
+
                 if (jsonElement.TryGetProperty("labels", out var labelsElement))
                 {
                     existingCard.Labels = labelsElement.ValueKind == System.Text.Json.JsonValueKind.String 
@@ -367,6 +377,7 @@ namespace UI.Controllers
                     isCompleted = existingCard.IsCompleted,
                     listId = existingCard.ListId,
                     assignedUserId = existingCard.AssignedUserId,
+                    assignedUserIds = existingCard.AssignedUserIds,
                     labels = existingCard.Labels,
                     priority = existingCard.Priority,
                     status = existingCard.Status,

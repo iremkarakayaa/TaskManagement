@@ -72,7 +72,6 @@ function Login({ onLogin }) {
                                 className="form-input"
                                 value={formData.email}
                                 onChange={handleChange}
-                                placeholder="ornek@email.com veya kullaniciadi"
                                 required
                                 autoFocus
                             />
@@ -89,7 +88,6 @@ function Login({ onLogin }) {
                                 className="form-input"
                                 value={formData.password}
                                 onChange={handleChange}
-                                placeholder="Şifrenizi girin"
                                 required
                             />
                         </div>
@@ -104,15 +102,6 @@ function Login({ onLogin }) {
                     </form>
 
                     <div className="auth-footer">
-                        <p>
-                            <button
-                                type="button"
-                                className="auth-link"
-                                onClick={() => setShowForgotPassword(true)}
-                            >
-                                Şifremi Unuttum
-                            </button>
-                        </p>
                         <p>
                             Hesabınız yok mu?{" "}
                             <Link to="/register" className="auth-link">

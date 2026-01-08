@@ -26,13 +26,24 @@ const Board = ({ user, onLogout }) => {
     const [showCollaborationModal, setShowCollaborationModal] = useState(false);
     const [userBoards, setUserBoards] = useState([]);
     const [showBoardSwitcher, setShowBoardSwitcher] = useState(false);
+    const [boardMembers, setBoardMembers] = useState([]);
 
     const API_BASE = "http://localhost:5035/api";
 
     useEffect(() => {
         fetchBoardData();
         fetchUserBoards();
+        fetchBoardMembers();
     }, [boardId, user?.id]);
+
+    const fetchBoardMembers = async () => {
+        try {
+            const response = await axios.get(`${API_BASE}/boardcollaboration/${boardId}/members`);
+            setBoardMembers(response.data);
+        } catch (err) {
+            console.error('Pano üyeleri yüklenirken hata:', err);
+        }
+    };
 
     // Board ve listeleri getir
     const fetchBoardData = async () => {
@@ -48,8 +59,26 @@ const Board = ({ user, onLogout }) => {
                 return;
             }
 
+            // Kart verilerini normalize et (string -> array)
+            const normalizedLists = listsData.map(list => ({
+                ...list,
+                cards: (list.cards || []).map(card => {
+                    let parsedIds = [];
+                    try {
+                        const rawIds = card.assignedUserIds || card.AssignedUserIds;
+                        parsedIds = typeof rawIds === 'string' ? JSON.parse(rawIds || '[]') : (rawIds || []);
+                    } catch (e) {
+                        console.error("Error parsing assignedUserIds for card:", card.id, e);
+                    }
+                    return {
+                        ...card,
+                        assignedUserIds: parsedIds
+                    };
+                })
+            }));
+
             setBoard(boardData);
-            setLists(listsData.sort((a, b) => a.order - b.order));
+            setLists(normalizedLists.sort((a, b) => a.order - b.order));
             setError(null);
         } catch (err) {
             setError('Pano verileri yüklenirken bir hata oluştu.');
@@ -161,27 +190,34 @@ const Board = ({ user, onLogout }) => {
                 IsCompleted: card.IsCompleted !== undefined ? card.IsCompleted : card.isCompleted,
                 listId: card.listId,
                 checklist: card.checklist || '[]',
-                assignedUserId: card.assignedUserId || null
+                assignedUserId: card.assignedUserId || null,
+                assignedUserIds: card.assignedUserIds || []
             };
             
-            console.log('Gönderilen payload:', JSON.stringify(payload, null, 2));
             const response = await axios.put(`${API_BASE}/cards/${card.id}`, payload);
-            console.log('API response:', response.data);
             const updatedCard = response.data;
 
-            // Backend'den gelen IsCompleted'i normalize et (hem IsCompleted hem isCompleted olabilir)
+            // Backend'den gelen veriyi normalize et
             const normalizedCard = {
                 ...updatedCard,
                 IsCompleted: updatedCard.IsCompleted !== undefined ? updatedCard.IsCompleted : updatedCard.isCompleted,
-                isCompleted: updatedCard.IsCompleted !== undefined ? updatedCard.IsCompleted : updatedCard.isCompleted
+                isCompleted: updatedCard.IsCompleted !== undefined ? updatedCard.IsCompleted : updatedCard.isCompleted,
+                // assignedUserIds string gelirse diziye çevir
+                assignedUserIds: typeof updatedCard.assignedUserIds === 'string' 
+                    ? JSON.parse(updatedCard.assignedUserIds || '[]') 
+                    : (updatedCard.assignedUserIds || [])
             };
 
-            setLists(lists.map(list =>
+            // Hem listeyi hem de seçili kartı güncelle
+            setLists(prevLists => prevLists.map(list =>
                 list.id === normalizedCard.listId
                     ? { ...list, cards: (list.cards || []).map(c => c.id === normalizedCard.id ? normalizedCard : c) }
                     : list
             ));
-            console.log('Kart başarıyla güncellendi');
+
+            if (selectedCard && selectedCard.id === normalizedCard.id) {
+                setSelectedCard(normalizedCard);
+            }
         } catch (err) {
             console.error('Kart güncellenirken bir hata oluştu:', err);
             console.error('Error response:', err.response?.data);
@@ -362,6 +398,7 @@ const Board = ({ user, onLogout }) => {
                                             key={list.id}
                                             list={list}
                                             index={index}
+                                            boardMembers={boardMembers}
                                             onEditList={handleEditList}
                                             onDeleteList={handleDeleteList}
                                             onAddCard={(listId) => {

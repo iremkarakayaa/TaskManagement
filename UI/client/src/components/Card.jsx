@@ -1,8 +1,27 @@
 import React, { useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 
-const Card = ({ card, index, onEdit, onDelete, onClick }) => {
+const Card = ({ card, index, boardMembers = [], onEdit, onDelete, onClick }) => {
     const [showActions, setShowActions] = useState(false);
+
+    // Atanmış kullanıcıları belirle
+    const getAssignedUsers = () => {
+        let assignedIds = [];
+        try {
+            if (Array.isArray(card.assignedUserIds)) {
+                assignedIds = card.assignedUserIds;
+            } else if (typeof card.assignedUserIds === 'string') {
+                assignedIds = JSON.parse(card.assignedUserIds || '[]');
+            }
+        } catch (e) {
+            console.error("Error parsing assignedUserIds:", e);
+        }
+
+        // boardMembers dizisindeki UserId veya Id alanına göre eşleştirme yap
+        return boardMembers.filter(m => assignedIds.includes(m.userId) || assignedIds.includes(m.Id) || assignedIds.includes(m.id));
+    };
+
+    const assignedUsers = getAssignedUsers();
 
     const getPriorityColor = (priority) => {
         switch (priority) {
@@ -108,6 +127,24 @@ const Card = ({ card, index, onEdit, onDelete, onClick }) => {
                                 <div className="card-checklist-indicator">
                                     <span className="checklist-icon">☑️</span>
                                     <span className="checklist-count">{completedCount}/{totalChecklist}</span>
+                                </div>
+                            )}
+
+                            {/* Atanmış Kullanıcılar */}
+                            {assignedUsers.length > 0 && (
+                                <div className="card-assigned-users">
+                                    {assignedUsers.slice(0, 3).map(user => (
+                                        <div 
+                                            key={user.userId || user.id} 
+                                            className="mini-avatar" 
+                                            title={user.username}
+                                        >
+                                            {user.username?.charAt(0).toUpperCase()}
+                                        </div>
+                                    ))}
+                                    {assignedUsers.length > 3 && (
+                                        <div className="mini-avatar more">+{assignedUsers.length - 3}</div>
+                                    )}
                                 </div>
                             )}
 

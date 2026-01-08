@@ -22,24 +22,48 @@ namespace UI.Controllers
         {
             try
             {
-                var members = await _context.BoardMembers
+                var board = await _context.Boards
+                    .Include(b => b.OwnerUser)
+                    .FirstOrDefaultAsync(b => b.Id == boardId);
+
+                if (board == null)
+                    return NotFound(new { message = "Pano bulunamadı" });
+
+                // Üyeleri çekelim ve kesinlikle düz bir yapıda dönelim
+                var boardMembers = await _context.BoardMembers
                     .Where(bm => bm.BoardId == boardId && bm.IsActive)
                     .Include(bm => bm.User)
-                    .Select(bm => new
-                    {
-                        bm.Id,
-                        bm.Role,
-                        bm.JoinedAt,
-                        User = new
-                        {
-                            bm.User.Id,
-                            bm.User.Username,
-                            bm.User.Email
-                        }
-                    })
                     .ToListAsync();
 
-                return Ok(members);
+                var result = new List<object>();
+
+                // Önce pano sahibini ekleyelim
+                result.Add(new
+                {
+                    id = board.OwnerUser.Id,
+                    username = board.OwnerUser.Username,
+                    email = board.OwnerUser.Email,
+                    role = "Owner",
+                    isOwner = true
+                });
+
+                // Diğer üyeleri ekleyelim (sahip değilse)
+                foreach (var bm in boardMembers)
+                {
+                    if (bm.UserId != board.OwnerUserId)
+                    {
+                        result.Add(new
+                        {
+                            id = bm.User.Id,
+                            username = bm.User.Username,
+                            email = bm.User.Email,
+                            role = bm.Role.ToString(),
+                            isOwner = false
+                        });
+                    }
+                }
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

@@ -65,7 +65,9 @@ namespace UI.Controllers
                                 c.IsCompleted,
                                 c.Order,
                                 c.ListId,
-                                c.Checklist
+                                c.Checklist,
+                                c.AssignedUserId,
+                                c.AssignedUserIds
                             }).ToList()
                         }).ToList()
                     })
@@ -136,7 +138,9 @@ namespace UI.Controllers
                                 c.DueDate,
                                 c.IsCompleted,
                                 c.ListId,
-                                c.Checklist
+                                c.Checklist,
+                                c.AssignedUserId,
+                                c.AssignedUserIds
                             }).ToList()
                         }).ToList()
                     })
@@ -258,24 +262,56 @@ namespace UI.Controllers
         {
             try
             {
+                var board = await _context.Boards
+                    .Include(b => b.OwnerUser)
+                    .FirstOrDefaultAsync(b => b.Id == id);
+
+                if (board == null)
+                    return NotFound(new { message = "Pano bulunamadı" });
+
                 var members = await _context.BoardMembers
                     .Include(bm => bm.User)
                     .Where(bm => bm.BoardId == id && bm.IsActive)
                     .Select(bm => new
                     {
-                        bm.Id,
-                        bm.Role,
-                        bm.JoinedAt,
-                        User = new
-                        {
-                            bm.User.Id,
-                            bm.User.Username,
-                            bm.User.Email
-                        }
+                        UserId = bm.User.Id,
+                        Username = bm.User.Username,
+                        Email = bm.User.Email,
+                        Role = bm.Role.ToString(),
+                        IsOwner = false
                     })
                     .ToListAsync();
 
-                return Ok(members);
+                // Sahibi listeye ekle (eğer zaten listede değilse)
+                if (!members.Any(m => m.UserId == board.OwnerUserId))
+                {
+                    members.Insert(0, new
+                    {
+                        UserId = board.OwnerUser.Id,
+                        Username = board.OwnerUser.Username,
+                        Email = board.OwnerUser.Email,
+                        Role = "Owner",
+                        IsOwner = true
+                    });
+                }
+                else
+                {
+                    // Eğer sahibi zaten listedeyse, IsOwner işaretle
+                    var ownerInMembers = members.First(m => m.UserId == board.OwnerUserId);
+                    // Anonymous types are immutable, so we'd need a different approach if we wanted to "update" it.
+                    // But we can just recreate the list or use a DTO.
+                }
+
+                // Daha temiz bir liste döndürelim
+                var result = members.Select(m => new {
+                    m.UserId,
+                    m.Username,
+                    m.Email,
+                    Role = m.UserId == board.OwnerUserId ? "Owner" : m.Role,
+                    IsOwner = m.UserId == board.OwnerUserId
+                }).ToList();
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

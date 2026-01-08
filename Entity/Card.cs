@@ -17,6 +17,7 @@ namespace Entity
         public int ListId { get; set; }
         public int Order { get; set; } // List içindeki sıra
         public int? AssignedUserId { get; set; } // Opsiyonel atama
+        public string AssignedUserIds { get; set; } = "[]"; // JSON string olarak saklanacak (birden fazla kullanıcı için)
         public string Checklist { get; set; } = "[]"; // JSON string olarak saklanacak
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

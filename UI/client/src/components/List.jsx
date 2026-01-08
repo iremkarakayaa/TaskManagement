@@ -5,6 +5,7 @@ import Card from './Card';
 const List = ({ 
     list, 
     index, 
+    boardMembers,
     onEditList, 
     onDeleteList, 
     onAddCard, 
@@ -145,6 +146,7 @@ const List = ({
                                             key={card.id}
                                             card={card}
                                             index={cardIndex}
+                                            boardMembers={boardMembers}
                                             onEdit={onEditCard}
                                             onDelete={onDeleteCard}
                                             onClick={onCardClick}

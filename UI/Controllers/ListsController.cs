@@ -41,16 +41,14 @@ namespace UI.Controllers
                             .OrderBy(c => c.Order)
                             .Select(c => new
                         {
-                            id = c.Id,
-                            title = c.Title,
-                            description = c.Description,
-                            dueDate = c.DueDate,
-                            isCompleted = c.IsCompleted,
-                            order = c.Order,
-                            listId = c.ListId,
-                            checklist = c.Checklist,
-                            assignedUserId = c.AssignedUserId,
-                            assignedUserIds = c.AssignedUserIds
+                            c.Id,
+                            c.Title,
+                            c.Description,
+                            c.DueDate,
+                            c.IsCompleted,
+                            c.Order,
+                            c.ListId,
+                            c.Checklist
                         }).ToList()
                     })
                     .OrderBy(l => l.Order)

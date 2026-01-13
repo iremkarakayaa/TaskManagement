@@ -10,10 +10,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
         priority: card.priority || 'medium',
         status: card.status || 'pending',
         labels: card.labels || [],
-        assignedUserId: card.assignedUserId || null,
-        assignedUserIds: Array.isArray(card.assignedUserIds) 
-            ? card.assignedUserIds 
-            : (typeof card.assignedUserIds === 'string' ? JSON.parse(card.assignedUserIds || '[]') : [])
+        assignedUserId: card.assignedUserId || null
     });
     const [newLabel, setNewLabel] = useState('');
     const [newComment, setNewComment] = useState('');
@@ -22,32 +19,10 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
     const [availableUsers, setAvailableUsers] = useState([]);
     const [comments, setComments] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showUserDropdown, setShowUserDropdown] = useState(false);
-    const dropdownRef = React.useRef(null);
 
     const API_BASE = "http://localhost:5035/api";
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setShowUserDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        let parsedAssignedUserIds = [];
-        try {
-            parsedAssignedUserIds = Array.isArray(card.assignedUserIds) 
-                ? card.assignedUserIds 
-                : (typeof card.assignedUserIds === 'string' ? JSON.parse(card.assignedUserIds || '[]') : []);
-        } catch (e) {
-            console.error("Error parsing assignedUserIds:", e);
-        }
-
         setFormData({
             title: card.title || '',
             description: card.description || '',
@@ -55,8 +30,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
             priority: card.priority || 'medium',
             status: card.status || 'pending',
             labels: card.labels || [],
-            assignedUserId: card.assignedUserId || null,
-            assignedUserIds: parsedAssignedUserIds
+            assignedUserId: card.assignedUserId || null
         });
         
         // Her durumda board members'ı yükle
@@ -98,8 +72,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
             const response = await fetch(`${API_BASE}/boardcollaboration/${boardId}/members`);
             if (response.ok) {
                 const members = await response.json();
-                console.log('Fetched Board Members:', members); // Debug için log ekledik
-                setAvailableUsers(members);
+                setAvailableUsers(members.map(m => m.user));
             }
         } catch (err) {
             console.error('Error fetching board members:', err);
@@ -124,8 +97,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                     priority: formData.priority,
                     status: formData.status,
                     labels: formData.labels,
-                    assignedUserId: formData.assignedUserIds.length > 0 ? formData.assignedUserIds[0] : null,
-                    assignedUserIds: formData.assignedUserIds,
+                    assignedUserId: formData.assignedUserId || null,
                     checklist: []
                 };
                 console.log('Yeni kart oluşturuluyor:', cardData);
@@ -142,8 +114,7 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                     labels: JSON.stringify(formData.labels || []),
                     checklist: JSON.stringify(card.checklist || []),
                     isCompleted: card.isCompleted || false,
-                    assignedUserId: formData.assignedUserIds.length > 0 ? formData.assignedUserIds[0] : null,
-                    assignedUserIds: JSON.stringify(formData.assignedUserIds)
+                    assignedUserId: formData.assignedUserId || null
                 };
                 onUpdate(updatePayload);
                 setIsEditing(false);
@@ -214,32 +185,25 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
         }
     };
 
-    const handleUpdateAssignment = (userId) => {
-        const currentIds = [...(formData.assignedUserIds || [])];
-        const index = currentIds.indexOf(userId);
-        
-        let newIds;
-        if (index > -1) {
-            // Zaten seçili, kaldır
-            newIds = currentIds.filter(id => id !== userId);
-        } else {
-            // Seçili değil, ekle
-            newIds = [...currentIds, userId];
-        }
-
-        console.log('Local assignment change:', newIds);
-        
-        // UI'ı hemen güncelle ama API'ye henüz gönderme
-        setFormData(prev => ({ ...prev, assignedUserIds: newIds }));
-    };
-
-    const handleConfirmAssignment = async () => {
-        if (!card.id) return;
-
+    const handleUpdateAssignment = async (userId) => {
         try {
-            setIsSaving(true);
-            const updatePayload = {
-                ...formData,
+            console.log('Assignment change - old:', card.assignedUserId, 'new:', userId);
+            
+            // Atama değişikliği varsa önce atama API'sini çağır
+            if (card.assignedUserId !== userId && card.id) {
+                if (userId) {
+                    // Yeni atama
+                    console.log('Assigning to user:', userId);
+                    await assignCardToUser(card.id, userId, 1); // Şimdilik sabit kullanıcı ID
+                } else if (card.assignedUserId) {
+                    // Atama kaldırma
+                    console.log('Unassigning card');
+                    await unassignCard(card.id, 1); // Şimdilik sabit kullanıcı ID
+                }
+            }
+
+            // Sonra kartı güncelle
+            const updatePayload = !card.id ? null : {
                 id: card.id,
                 title: (formData.title ?? card.title ?? '').toString().trim(),
                 description: formData.description ?? card.description ?? '',
@@ -249,17 +213,14 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                 labels: JSON.stringify(formData.labels && formData.labels.length ? formData.labels : (card.labels || [])),
                 checklist: JSON.stringify(Array.isArray(card.checklist) ? card.checklist : []),
                 isCompleted: card.isCompleted ?? false,
-                assignedUserId: formData.assignedUserIds.length > 0 ? formData.assignedUserIds[0] : null,
-                assignedUserIds: formData.assignedUserIds // Burada dizi olarak gönderiyoruz, Board.jsx ve API bunu ele alacak
+                assignedUserId: userId
             };
-            
-            await onUpdate(updatePayload);
-            alert('Atamalar başarıyla güncellendi.');
+            setFormData(prev => ({ ...prev, assignedUserId: userId }));
+            if (updatePayload) {
+                onUpdate(updatePayload);
+            }
         } catch (err) {
-            console.error('Error confirming assignment:', err);
-            alert('Atama güncellenirken bir hata oluştu.');
-        } finally {
-            setIsSaving(false);
+            console.error('Error updating assignment:', err);
         }
     };
 
@@ -371,98 +332,18 @@ const ModernCardDetailModal = ({ boardId, card, onClose, onUpdate, onDelete }) =
                         {/* Atama */}
                         <div className="sidebar-section">
                             <h4>👤 Ata</h4>
-                            <div className="user-selection-container">
-                                {/* Seçili Kullanıcılar (Chips) */}
-                                <div className="selected-users-chips">
-                                    {availableUsers.filter(u => {
-                                        const uId = u.id || u.Id || u.userId || u.UserId || (u.user && (u.user.id || u.user.Id));
-                                        return (formData.assignedUserIds || []).includes(uId);
-                                    }).map(user => {
-                                        const uId = user.id || user.Id || user.userId || user.UserId || (user.user && (user.user.id || user.user.Id));
-                                        const uName = user.username || user.Username || user.userName || user.UserName || (user.user && (user.user.username || user.user.Username)) || user.email || user.Email || "İsimsiz";
-                                        
-                                        return (
-                                            <div key={uId} className="user-chip">
-                                                <span className="chip-name">{uName}</span>
-                                                <button className="chip-remove" onClick={() => handleUpdateAssignment(uId)}>×</button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Arama ve Seçim Barı */}
-                                <div className="user-search-bar-wrapper" ref={dropdownRef}>
-                                    <input
-                                        type="text"
-                                        className="form-input user-search-input"
-                                        placeholder="Kullanıcı ara..."
-                                        value={searchTerm}
-                                        onChange={(e) => {
-                                            setSearchTerm(e.target.value);
-                                            setShowUserDropdown(true);
-                                        }}
-                                        onFocus={() => setShowUserDropdown(true)}
-                                        onClick={() => setShowUserDropdown(true)}
-                                    />
-                                    
-                                    {showUserDropdown && (
-                                        <div className="user-dropdown-list">
-                                            {availableUsers
-                                                .filter(u => {
-                                                    const uId = u.id || u.Id || u.userId || u.UserId || (u.user && (u.user.id || u.user.Id));
-                                                    const uName = (u.username || u.Username || u.userName || u.UserName || (u.user && (u.user.username || u.user.Username)) || u.email || u.Email || "").toLowerCase();
-                                                    // Hem arama terimine uymalı hem de henüz seçilmemiş olmalı
-                                                    const isSearchMatch = uName.includes(searchTerm.toLowerCase());
-                                                    const isAlreadySelected = (formData.assignedUserIds || []).some(id => id === uId);
-                                                    return isSearchMatch && !isAlreadySelected;
-                                                })
-                                                .map(user => {
-                                                    const uId = user.id || user.Id || user.userId || user.UserId || (user.user && (user.user.id || user.user.Id));
-                                                    const uName = user.username || user.Username || user.userName || user.UserName || (user.user && (user.user.username || user.user.Username)) || user.email || user.Email || "İsimsiz";
-                                                    const isOwner = user.isOwner === true || user.role === "Owner" || user.Role === "Owner";
-                                                    
-                                                    return (
-                                                        <div 
-                                                            key={uId} 
-                                                            className="user-dropdown-item"
-                                                            onClick={() => {
-                                                                handleUpdateAssignment(uId);
-                                                                setSearchTerm('');
-                                                                setShowUserDropdown(false);
-                                                            }}
-                                                        >
-                                                            <div className="dropdown-user-info">
-                                                                <span className="dropdown-user-name">{uName}</span>
-                                                                {isOwner && <span className="owner-badge-mini">Sahip</span>}
-                                                            </div>
-                                                            <span className="add-plus">+</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            {availableUsers.filter(u => {
-                                                const uId = u.id || u.Id || u.userId || u.UserId;
-                                                const isAlreadySelected = (formData.assignedUserIds || []).some(id => id === uId);
-                                                return !isAlreadySelected && (u.username || u.Username || "").toLowerCase().includes(searchTerm.toLowerCase());
-                                            }).length === 0 && (
-                                                <div className="no-results">
-                                                    {availableUsers.length === (formData.assignedUserIds || []).length 
-                                                        ? "Tüm üyeler seçildi" 
-                                                        : "Eşleşen kullanıcı bulunamadı"}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            {card.id && (
-                                <button 
-                                    className="btn btn-sm btn-primary assign-confirm-btn"
-                                    onClick={handleConfirmAssignment}
-                                    disabled={isSaving}
-                                >
-                                    {isSaving ? '💾 Kaydediliyor...' : '👤 Atamaları Güncelle'}
-                                </button>
-                            )}
+                            <select
+                                className="form-input"
+                                value={card.assignedUserId || ''}
+                                onChange={(e) => handleUpdateAssignment(e.target.value ? parseInt(e.target.value) : null)}
+                            >
+                                <option value="">Atanmamış</option>
+                                {availableUsers.map(user => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.username}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Bitiş Tarihi */}

@@ -1,7 +1,6 @@
 ﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 function Login({ onLogin }) {
     const [formData, setFormData] = useState({
@@ -10,7 +9,6 @@ function Login({ onLogin }) {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [showForgotPassword, setShowForgotPassword] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -111,12 +109,6 @@ function Login({ onLogin }) {
                     </div>
                 </div>
             </div>
-
-            {showForgotPassword && (
-                <ForgotPasswordModal
-                    onClose={() => setShowForgotPassword(false)}
-                />
-            )}
         </div>
     );
 }

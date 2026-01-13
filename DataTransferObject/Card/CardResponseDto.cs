@@ -9,6 +9,5 @@
         public bool IsCompleted { get; set; }
         public int ListId { get; set; }
         public int? AssignedUserId { get; set; }
-        public List<int> AssignedUserIds { get; set; } = new List<int>();
     }
 }

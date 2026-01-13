@@ -65,9 +65,7 @@ namespace UI.Controllers
                                 c.IsCompleted,
                                 c.Order,
                                 c.ListId,
-                                c.Checklist,
-                                c.AssignedUserId,
-                                c.AssignedUserIds
+                                c.Checklist
                             }).ToList()
                         }).ToList()
                     })
@@ -138,9 +136,7 @@ namespace UI.Controllers
                                 c.DueDate,
                                 c.IsCompleted,
                                 c.ListId,
-                                c.Checklist,
-                                c.AssignedUserId,
-                                c.AssignedUserIds
+                                c.Checklist
                             }).ToList()
                         }).ToList()
                     })
